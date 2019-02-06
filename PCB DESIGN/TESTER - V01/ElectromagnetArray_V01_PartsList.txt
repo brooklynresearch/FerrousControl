@@ -1,6 +1,6 @@
 Partlist
 
-Exported from ElectromagnetArray_V01.sch at 2/5/2019 3:54 PM
+Exported from ElectromagnetArray_V01.sch at 2/6/2019 3:11 PM
 
 EAGLE Version 9.0.1 Copyright (c) 1988-2018 Autodesk, Inc.
 
@@ -50,5 +50,9 @@ R10      1k                 R-US_0204/7        0204/7              rcl          
 R11      1k                 R-US_0204/7        0204/7              rcl                 1
 R12      1k                 R-US_0204/7        0204/7              rcl                 1
 R13      220                R-US_0204/7        0204/7              rcl                 1
+R14      1k                 R-US_0204/7        0204/7              rcl                 1
+R15      1k                 R-US_0204/7        0204/7              rcl                 1
+R16      1k                 R-US_0204/7        0204/7              rcl                 1
+R17      1k                 R-US_0204/7        0204/7              rcl                 1
 U$1      TEENSY3.2          TEENSY3.2          TEENSY              EzerLonginus        1
 U$2      SMPS_SMALL         SMPS_SMALL         SMPS_SMALL          EzerLonginus        1
