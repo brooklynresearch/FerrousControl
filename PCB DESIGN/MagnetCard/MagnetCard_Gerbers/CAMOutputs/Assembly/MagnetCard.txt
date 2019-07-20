@@ -1,0 +1,4 @@
+Partlist exported from C:/Users/arima/Documents/EAGLE/projects/Mika Tajima/MagnetCard.sch at 7/10/2019 2:01 PM
+
+Qty Value             Device            Package           Parts              Description 
+4   18X1_CARD_PADLONG 18X1_CARD_PADLONG 18X1_CARDPAD_LONG U$1, U$2, U$3, U$4             
