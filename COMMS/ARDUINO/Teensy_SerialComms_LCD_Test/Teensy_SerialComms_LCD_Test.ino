@@ -57,7 +57,7 @@ const int rs = 4, en = 5, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(1000000);
   Serial1.begin(115200);
 
   pinMode(DATA_DIR_PIN, OUTPUT);
@@ -82,7 +82,7 @@ void loop() {
   uint8_t rowIndex = 0;
   while(Serial.available() > 0){
     uint8_t inByte = Serial.read();
-    Serial.write(inByte);
+    Serial1.write(inByte);
     lcd.setCursor(charIndex, rowIndex);
     if(charIndex <= 15 && rowIndex <= 1){
       lcd.print(inByte);
