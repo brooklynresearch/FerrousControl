@@ -43,7 +43,7 @@
 // include the library code:
 #include <LiquidCrystal.h>
 
-#define VERSION 0.0
+#define VERSION 320.30
 #define DATA_DIR_PIN  2
 
 #define RS485_TRANSMIT  HIGH
@@ -53,12 +53,20 @@
 // with the arduino pin number it is connected to
 const int rs = 4, en = 5, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 
+const uint16_t packetSize = 320;
+uint8_t byteBuffer[packetSize];
+uint32_t packetCount = 0;
+uint32_t byteCount = 0;
+uint16_t checksum = 0;
 
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup() {
   Serial.begin(1000000);
-  Serial1.begin(115200);
+  //Serial1.begin(115200);
+  Serial1.begin(1000000);
+  Serial2.begin(1000000);
+  Serial3.begin(1000000);
 
   pinMode(DATA_DIR_PIN, OUTPUT);
   digitalWrite(DATA_DIR_PIN, RS485_TRANSMIT);
@@ -73,33 +81,48 @@ void setup() {
   delay(2000);
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("SER:");
+  //lcd.print("PKT:");
+  lcd.print(" LEN:");
+  lcd.print(packetSize);
 }
 
 void loop() {
-  lcd.setCursor(4,0);
+  //lcd.setCursor(4,0);
   uint8_t charIndex = 4;
   uint8_t rowIndex = 0;
-  while(Serial.available() > 0){
-    uint8_t inByte = Serial.read();
-    Serial1.write(inByte);
-    lcd.setCursor(charIndex, rowIndex);
-    if(charIndex <= 15 && rowIndex <= 1){
-      lcd.print(inByte);
-    }
-    else if(charIndex > 15){
-      if(rowIndex < 1){
-        charIndex = 0;
-        rowIndex = 1;
+  if (Serial.available()) {
+    // wait a bit for the entire message to arrive
+    delay(24);
+    while(Serial.available() > 0){
+      uint8_t inByte = Serial.read();
+      byteBuffer[byteCount++] = inByte;
+      checksum = (checksum + inByte) % 65535;
+      //Serial1.write(inByte);
+      if(byteCount == packetSize) {
+        Serial1.write(byteBuffer, sizeof(byteBuffer));
+        Serial1.flush(); // block until sent
+        /*
+        Serial2.write(byteBuffer, sizeof(byteBuffer));
+        Serial2.flush(); // block until sent
+
+        Serial3.write(byteBuffer, sizeof(byteBuffer));
+        Serial3.flush(); // block until sent
+        /*
+        packetCount++;
+        /*
+        lcd.setCursor(charIndex, rowIndex);
+        lcd.print(packetCount);
+        lcd.print(" LEN:");
+        lcd.print(byteCount);
+        lcd.setCursor(0,1);
+        lcd.print("CHK:");
+        lcd.print(checksum);*/
+        byteCount = 0;
+        checksum = 0;
+        Serial.write('$');
       }
-      lcd.setCursor(0,1);
-      lcd.print(inByte);
-    } else {
-      //SCREEN OVERFLOW
-      //DO NOTHING
     }
-     charIndex += 4;
   }
-  Serial.println();
+  //Serial.println();
 }
 
