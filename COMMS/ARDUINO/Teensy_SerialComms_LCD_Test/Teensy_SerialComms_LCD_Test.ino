@@ -43,7 +43,7 @@
 // include the library code:
 #include <LiquidCrystal.h>
 
-#define VERSION 320.30
+#define VERSION 16.00
 #define DATA_DIR_PIN  2
 
 #define RS485_TRANSMIT  HIGH
@@ -99,21 +99,24 @@ void loop() {
       checksum = (checksum + inByte) % 65535;
       //Serial1.write(inByte);
       if(byteCount == packetSize) {
-        Serial1.write(byteBuffer, sizeof(byteBuffer));
+        Serial1.write(byteBuffer, 320);
         Serial1.flush(); // block until sent
-        /*
-        Serial2.write(byteBuffer, sizeof(byteBuffer));
+        
+        Serial2.write(byteBuffer, 320);
         Serial2.flush(); // block until sent
 
-        Serial3.write(byteBuffer, sizeof(byteBuffer));
+        Serial3.write(byteBuffer, 320);
         Serial3.flush(); // block until sent
+
+        lcd.setCursor(charIndex, rowIndex);
+        lcd.print(inByte);
         /*
         packetCount++;
         /*
         lcd.setCursor(charIndex, rowIndex);
         lcd.print(packetCount);
         lcd.print(" LEN:");
-        lcd.print(byteCount);
+        lcd.print(byteCount);/*
         lcd.setCursor(0,1);
         lcd.print("CHK:");
         lcd.print(checksum);*/
@@ -125,4 +128,3 @@ void loop() {
   }
   //Serial.println();
 }
-

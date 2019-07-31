@@ -56,10 +56,12 @@ const int rs = 9, en = 8, d4 = 7, d5 = 6, d6 = 5, d7 = 4;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 const uint16_t packetSize = 320;
-const uint16_t targetByte = packetSize;
+const uint16_t targetByte = 160;
 uint16_t byteCount = 0;
 uint16_t packetCount = 0;
 uint16_t checksum = 0;
+uint8_t indicator = 0;
+
 
 void setup() {
   Serial.begin(1000000);
@@ -88,19 +90,22 @@ void loop() {
     while(Serial.available() > 0) {
       uint8_t inByte = Serial.read();
       byteCount++;
-      checksum = (checksum + inByte) % 65535;    
-      if(byteCount == targetByte) {
+      checksum = (checksum + inByte) % 65535; 
+      if(byteCount == targetByte) {   
+        indicator = inByte;
+      }
+      if(byteCount == packetSize) {
         lcd.setCursor(charIndex, rowIndex);
         lcd.print(packetCount++);
-        lcd.print(" *:");
-        lcd.print(inByte);
+        lcd.print(" ^:");
+        lcd.print(indicator);
         lcd.setCursor(0, 1);
         lcd.print("CHK:");
         lcd.print(checksum);
+        Serial.flush();
         byteCount = 0;
         checksum = 0;
       }
     }
   }
 }
-

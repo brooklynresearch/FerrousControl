@@ -6,7 +6,7 @@ from random import randint
 PACKET_LEN = 320
 
 def main():
-  s = serial.Serial('/dev/tty.usbmodem58036601', 1000000)
+  s = serial.Serial('/dev/tty.usbmodem5803660', 1000000)
 
   count = 0
   while True:
