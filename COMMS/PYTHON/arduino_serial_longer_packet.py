@@ -6,7 +6,7 @@ import glob
 import serial
 import threading
 import random
-import ctypes, os 
+import ctypes, os
 
 from robust_serial import write_order, Order, write_i8, write_i16, read_i8, read_order
 from robust_serial.utils import open_serial_port
@@ -25,9 +25,9 @@ if (os.name=='nt'): #for Windows:
         freq = ctypes.c_int64()
 
         #get ticks on the internal ~2MHz QPC clock
-        ctypes.windll.Kernel32.QueryPerformanceCounter(ctypes.byref(tics)) 
+        ctypes.windll.Kernel32.QueryPerformanceCounter(ctypes.byref(tics))
         #get the actual freq. of the internal ~2MHz QPC clock
-        ctypes.windll.Kernel32.QueryPerformanceFrequency(ctypes.byref(freq))  
+        ctypes.windll.Kernel32.QueryPerformanceFrequency(ctypes.byref(freq))
 
         t_us = tics.value*1e6/freq.value
         return t_us
@@ -38,9 +38,9 @@ if (os.name=='nt'): #for Windows:
         freq = ctypes.c_int64()
 
         #get ticks on the internal ~2MHz QPC clock
-        ctypes.windll.Kernel32.QueryPerformanceCounter(ctypes.byref(tics)) 
-        #get the actual freq. of the internal ~2MHz QPC clock 
-        ctypes.windll.Kernel32.QueryPerformanceFrequency(ctypes.byref(freq)) 
+        ctypes.windll.Kernel32.QueryPerformanceCounter(ctypes.byref(tics))
+        #get the actual freq. of the internal ~2MHz QPC clock
+        ctypes.windll.Kernel32.QueryPerformanceFrequency(ctypes.byref(freq))
 
         t_ms = tics.value*1e3/freq.value
         return t_ms
@@ -63,11 +63,11 @@ elif (os.name=='posix'): #for Linux:
     #-ctypes.CDLL: https://docs.python.org/3.2/library/ctypes.html
     #-librt.so.1 with clock_gettime: https://docs.oracle.com/cd/E36784_01/html/E36873/librt-3lib.html #-
     #-Linux clock_gettime(): http://linux.die.net/man/3/clock_gettime
-    librt = ctypes.CDLL('librt.so.1', use_errno=True)
-    clock_gettime = librt.clock_gettime
+    # librt = ctypes.CDLL('librt.so.1', use_errno=True)
+    # clock_gettime = librt.clock_gettime
     #specify input arguments and types to the C clock_gettime() function
     # (int clock_ID, timespec* t)
-    clock_gettime.argtypes = [ctypes.c_int, ctypes.POINTER(timespec)]
+    # clock_gettime.argtypes = [ctypes.c_int, ctypes.POINTER(timespec)]
 
     def monotonic_time():
         "return a timestamp in seconds (sec)"
@@ -79,30 +79,30 @@ elif (os.name=='posix'): #for Linux:
             #if clock_gettime() returns an error
             errno_ = ctypes.get_errno()
             raise OSError(errno_, os.strerror(errno_))
-        return t.tv_sec + t.tv_nsec*1e-9 #sec 
+        return t.tv_sec + t.tv_nsec*1e-9 #sec
 
     def micros():
         "return a timestamp in microseconds (us)"
-        return monotonic_time()*1e6 #us 
+        return monotonic_time()*1e6 #us
 
     def millis():
         "return a timestamp in milliseconds (ms)"
-        return monotonic_time()*1e3 #ms 
+        return monotonic_time()*1e3 #ms
 
 #Other timing functions:
 def delay(delay_ms):
     "delay for delay_ms milliseconds (ms)"
     t_start = millis()
     while (millis() - t_start < delay_ms):
-      pass #do nothing 
+      pass #do nothing
     return
 
 def delayMicroseconds(delay_us):
     "delay for delay_us microseconds (us)"
     t_start = micros()
     while (micros() - t_start < delay_us):
-      pass #do nothing 
-    return 
+      pass #do nothing
+    return
 
 
 class serialSending(threading.Thread):
@@ -110,7 +110,7 @@ class serialSending(threading.Thread):
         super(serialSending,self).__init__()
     def run(self):
         try:
-            serial_file = open_serial_port(baudrate=1000000, timeout=None)
+            serial_file = open_serial_port(baudrate=115200, timeout=None)
         except Exception as e:
             raise e
 
@@ -135,8 +135,8 @@ class serialSending(threading.Thread):
             start_time = millis();
 
             led_state = 0
-            
-            if (start_time % 2000) > 1000:  
+
+            if (start_time % 2000) > 1000:
                 led_state = 4095
 
             # Equivalent to write_i8(serial_file, Order.MOTOR.value)
@@ -150,7 +150,7 @@ class serialSending(threading.Thread):
                 #print("Ordered received: {:?}", order)
                 #time.sleep(1)
 
-    
+
 
             #for _ in range(1):
                 #order = read_order(serial_file)
@@ -172,7 +172,7 @@ if __name__ ==  '__main__':
         thread=serialSending()
         thread.daemon=True
         thread.start()
-        while True: 
+        while True:
             #Code Stuffs
             time.sleep(100)
     except (KeyboardInterrupt, SystemExit):
