@@ -281,7 +281,7 @@ def draw():
     # magnetPort.write(END_SEQUENCE)
     # magnetPort.write(100)
     
-    if thread != None:
+    if sendThread != None:
         if sendThread.isAlive():
             print("DEAD")
         else:
@@ -289,7 +289,7 @@ def draw():
             sendThread.start()
             
     else:
-        sendThread = Thread(target = threadSerial, argument = carr)
+        sendThread = Thread(target = threadSerial, args = [carr])
         sendThread.start()
             
     
