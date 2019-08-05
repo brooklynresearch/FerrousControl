@@ -98,6 +98,7 @@ def threadSerial(infosend):
 sendQueue = Queue()
 sendThread = Thread(target = threadSerial, args = [None])
 busyCount = 0
+openCount = 0
 
 def setup():
     global FLUID, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, sf, w, yvalues
@@ -115,7 +116,7 @@ def setup():
     snake(WIDTH)
 
 def draw():
-    global s_tracker, MAGNET_CONNECTION, INITIALIZED, magnetPort, randposX, randposY, npcounter, counter, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, DENS, DENS_PREV, STARTING, BUBBLE_TOGGLE, SNEK_TOGGLE, AMOEBA_TOGGLE, directionX, directionY, amplitude, xspacing, yvalues, toggle, ccounter, theta, location_tracker, sf, angle, period, sendThread, busyCount
+    global s_tracker, MAGNET_CONNECTION, INITIALIZED, magnetPort, randposX, randposY, npcounter, counter, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, DENS, DENS_PREV, STARTING, BUBBLE_TOGGLE, SNEK_TOGGLE, AMOEBA_TOGGLE, directionX, directionY, amplitude, xspacing, yvalues, toggle, ccounter, theta, location_tracker, sf, angle, period, sendThread, busyCount, openCount
     
     background(0)
     
@@ -193,7 +194,7 @@ def draw():
                 print("BAD NUMBER", i, idx)
                 byteMessage+=chr(int(round(0.0)))
         
-        print(carr)
+        # print(carr)
         # byte message for testing
         # byteMessage = ''
         # checkMessage = []
@@ -216,6 +217,7 @@ def draw():
         if sendThread != None:
             if sendThread.isAlive():
                 busyCount += 1
+                openCount = 0
                 print("Thread BUSY", busyCount)
                 pass
             else:
@@ -223,6 +225,8 @@ def draw():
                 sendThread = Thread(target = threadSerial, args = [byteMessage])
                 sendThread.start()
                 busyCount = 0
+                openCount += 1
+                print("OPEN Thread", openCount)
                 # print("Thread GOOD!", busyCount)
                 
         else:

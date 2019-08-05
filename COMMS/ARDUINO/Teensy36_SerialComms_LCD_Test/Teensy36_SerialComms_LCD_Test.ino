@@ -54,7 +54,12 @@
 const int rs = 36, en =37, d4 = 38, d5 = 39, d6 = 14, d7 = 15;
 
 const uint16_t packetSize = 1600;
-uint8_t byteBuffer[packetSize];
+//uint8_t byteBuffer[packetSize];
+uint8_t buffer_1[320];
+uint8_t buffer_2[320];
+uint8_t buffer_3[320];
+uint8_t buffer_4[320];
+uint8_t buffer_5[320];
 uint32_t packetCount = 0;
 uint32_t byteCount = 0;
 uint16_t checksum = 0;
@@ -99,23 +104,47 @@ void loop() {
     delay(24);
     while(Serial.available() > 0){
       uint8_t inByte = Serial.read();
-      byteBuffer[byteCount++] = inByte;
+//      byteBuffer[byteCount++] = inByte;
+
+      if(byteCount < 320) {
+        buffer_1[byteCount] = inByte;
+      }
+
+      else if (byteCount < 640) {
+        buffer_2[byteCount % 320] = inByte;
+      }
+
+      else if (byteCount < 960) {
+        buffer_3[byteCount % 320] = inByte;
+      }
+
+      else if (byteCount < 1080) {
+        buffer_4[byteCount % 320] = inByte;
+      }
+
+      else {
+        buffer_5[byteCount % 320] = inByte;
+      }
+
+      ++byteCount;
+      
       checksum = (checksum + inByte) % 65535;
+
       //Serial1.write(inByte);
       if(byteCount == packetSize) {
-        Serial1.write(byteBuffer, 320);
+        Serial1.write(buffer_1, 320);
         Serial1.flush(); // block until sent
         
-        Serial2.write(byteBuffer, 320);
+        Serial2.write(buffer_2, 320);
         Serial2.flush(); // block until sent
 
-        Serial3.write(byteBuffer, 320);
+        Serial3.write(buffer_3, 320);
         Serial3.flush(); // block until sent
 
-        Serial4.write(byteBuffer, 320);
+        Serial4.write(buffer_4, 320);
         Serial4.flush(); // block until sent
 
-        Serial5.write(byteBuffer, 320);
+        Serial5.write(buffer_5, 320);
         Serial5.flush(); // block until sent
 
         /*
