@@ -53,11 +53,13 @@
 // with the arduino pin number it is connected to
 const int rs = 36, en =37, d4 = 38, d5 = 39, d6 = 14, d7 = 15;
 
-const uint16_t packetSize = 320;
+const uint16_t packetSize = 1600;
 uint8_t byteBuffer[packetSize];
 uint32_t packetCount = 0;
 uint32_t byteCount = 0;
 uint16_t checksum = 0;
+
+uint8_t checkByte = 0;
 
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
@@ -116,11 +118,6 @@ void loop() {
         Serial5.write(byteBuffer, 320);
         Serial5.flush(); // block until sent
 
-
-
-
-        lcd.setCursor(charIndex, rowIndex);
-        lcd.print(inByte);
         /*
         packetCount++;
         /*
@@ -131,11 +128,26 @@ void loop() {
         lcd.setCursor(0,1);
         lcd.print("CHK:");
         lcd.print(checksum);*/
+        lcd.setCursor(charIndex, rowIndex);
+        lcd.print(" LEN:");
+        lcd.print(byteCount);
+        lcd.setCursor(0,1);
+        lcd.print("CHK:");
+        lcd.print(checkByte);
         byteCount = 0;
         checksum = 0;
         Serial.write('$');
+
+      }
+
+
+//
+//        lcd.setCursor(charIndex, rowIndex);
+//        lcd.print(inByte);
+        if(byteCount == 1576){
+          checkByte = inByte;
+        }
+        
       }
     }
   }
-  //Serial.println();
-}
