@@ -43,8 +43,12 @@
 // include the library code:
 #include <LiquidCrystal.h>
 
-#define VERSION 3.00
-#define DATA_DIR_PIN  2
+#define VERSION 3.10
+#define DATA_DIR_PIN_1  2
+#define DATA_DIR_PIN_2  6
+#define DATA_DIR_PIN_3  11
+#define DATA_DIR_PIN_4  30
+#define DATA_DIR_PIN_5  35
 
 #define RS485_TRANSMIT  HIGH
 #define RS485_RECEIVE   LOW
@@ -54,7 +58,7 @@
 const int rs = 36, en =37, d4 = 38, d5 = 39, d6 = 14, d7 = 15;
 
 const uint16_t packetSize = 1600;
-//uint8_t byteBuffer[packetSize];
+uint8_t byteBuffer[packetSize];
 uint8_t buffer_1[320];
 uint8_t buffer_2[320];
 uint8_t buffer_3[320];
@@ -70,15 +74,23 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup() {
   Serial.begin(1000000);
-  //Serial1.begin(115200);
-  Serial1.begin(1000000);
-  Serial2.begin(1000000);
-  Serial3.begin(1000000);
-  Serial4.begin(1000000);
-  Serial5.begin(1000000);
+  Serial1.begin(115200);
+//  Serial1.begin(1000000);
+  Serial2.begin(115200);
+  Serial3.begin(115200);
+  Serial4.begin(115200);
+  Serial5.begin(115200);
 
-  pinMode(DATA_DIR_PIN, OUTPUT);
-  digitalWrite(DATA_DIR_PIN, RS485_TRANSMIT);
+  pinMode(DATA_DIR_PIN_1, OUTPUT);
+  digitalWrite(DATA_DIR_PIN_1, RS485_TRANSMIT);
+  pinMode(DATA_DIR_PIN_2, OUTPUT);
+  digitalWrite(DATA_DIR_PIN_2, RS485_TRANSMIT);
+  pinMode(DATA_DIR_PIN_3, OUTPUT);
+  digitalWrite(DATA_DIR_PIN_3, RS485_TRANSMIT);
+  pinMode(DATA_DIR_PIN_4, OUTPUT);
+  digitalWrite(DATA_DIR_PIN_4, RS485_TRANSMIT);
+  pinMode(DATA_DIR_PIN_5, OUTPUT);
+  digitalWrite(DATA_DIR_PIN_5, RS485_TRANSMIT);
   
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
@@ -93,6 +105,14 @@ void setup() {
   //lcd.print("PKT:");
   lcd.print(" LEN:");
   lcd.print(packetSize);
+
+//  for(int i = 0; i < 320; ++i){
+//    buffer_1[i] = 127;
+//    buffer_2[i] = 117;
+//    buffer_3[i] = 107;
+//    buffer_4[i] = 97;
+//    buffer_5[i] = 87;
+//  }
 }
 
 void loop() {
@@ -163,6 +183,7 @@ void loop() {
         lcd.setCursor(0,1);
         lcd.print("CHK:");
         lcd.print(checkByte);
+        lcd.print("  ");
         byteCount = 0;
         checksum = 0;
         Serial.write('$');
@@ -173,7 +194,7 @@ void loop() {
 //
 //        lcd.setCursor(charIndex, rowIndex);
 //        lcd.print(inByte);
-        if(byteCount == 1576){
+        if(byteCount == 1599){
           checkByte = inByte;
         }
         

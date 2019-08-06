@@ -49,7 +49,7 @@ INITIALIZED = False
 MAGNET_CONNECTION = False
 
 STARTING = 0
-sf = 20
+sf = 10
 
 #TOGGLES
 AMOEBA_TOGGLE = False
@@ -75,30 +75,29 @@ s_tracker = []
 
 def threadSerial(infosend):
     global magnetPort
-    # send serial information from infosend
-    # send and lock?
-    # this should already be set up and either global or sent
-    # magnetPort = Serial(this, arduinoPort, 1000000)
-    # writer = []
-    # writer = ''
-    # print(len(infosend))
-    # print(infosend)
-    # for i in infosend:
-        # writer+=str(i)
-    # print("infosend", infosend)
-    # print(infosend)
-    # print(len(infosend))
+
     if infosend != None:
         magnetPort.write(infosend)
-    else:
-        print("INITTER")
-
 
 # Send Queue
 sendQueue = Queue()
 sendThread = Thread(target = threadSerial, args = [None])
 busyCount = 0
 openCount = 0
+
+def reordinator(initial_list):
+    reordered_list = []
+    
+    for panel_y in range(5):
+        for panel_x in range(5):
+            for quad_y in range(2):
+                for quad_x in range(2):
+                    for mag_y in range(4):
+                        for mag_x in range(4):
+                            index = mag_x + mag_y * 40 + quad_x * 4 + quad_y * 160 + panel_x * 8 + panel_y * 320
+                            reordered_list.append(initial_list[index])
+                            
+    return reordered_list
 
 def setup():
     global FLUID, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, sf, w, yvalues
@@ -145,8 +144,8 @@ def draw():
   
     #AMOEBA movements generation
     if AMOEBA_TOGGLE:
-        directionX += randint(0,4) * 4
-        directionY -= randint(0,1)
+        directionX += randint(-4,4) * 4
+        directionY -= randint(-1,1)
         calcWave()
         renderWave()
         generate_amoeba()
@@ -185,54 +184,55 @@ def draw():
             
         carr = count()
                 
+        reordered_list = reordinator(carr)
+        
         # byte message to send
         byteMessage = ''
-        for idx, i in enumerate(carr):
+        # for idx, i in enumerate(carr):
+        for idx, i in enumerate(reordered_list):
             try:
                 byteMessage+=chr(int(round(i)))
             except:
                 print("BAD NUMBER", i, idx)
                 byteMessage+=chr(int(round(0.0)))
-        
         # print(carr)
-        # byte message for testing
-        # byteMessage = ''
-        # checkMessage = []
-        # for idx, i in enumerate(carr):
-        #     if idx == 75:
-        #         byteMessage+=chr(77)
-        #         checkMessage.append(77)
-        #     elif idx == 375:
-        #         byteMessage+=chr(88)
-        #         checkMessage.append(88)
-        #     elif idx == 1575:
-        #         byteMessage+=chr(127)
-        #         checkMessage.append(127)
-        #     else:
-        #         byteMessage+=chr(109)
-        #         checkMessage.append(109)
+        # print(carr[820],mouseX, mouseY)
         
-        # print(checkMessage)
+        # dummy values to prove sending
+        # changes every 1000 frames (~3.3 seconds @ 30 fps)
+        # values sent to each arduino alternates by 1
+        byteMessage = ''
+        msg_check = []
+        dween_num = 0
+        entry_num = 0
+    
+        for dweeners in range(5):
+            for entries in range(320):
+                val = dween_num * 25 + ((frameCount % 1000) / 100)
+                if entry_num % 2 == 0:
+                    val+=1                
+                msg_check.append(val)
+                byteMessage += chr(val)
+                entry_num+=1
+            dween_num+=1
+        print(msg_check, len(msg_check))
+                
+            
+
         # thread logic
-        if sendThread != None:
-            if sendThread.isAlive():
+        if sendThread.isAlive():
                 busyCount += 1
                 openCount = 0
-                print("Thread BUSY", busyCount)
+                # print("Thread BUSY", busyCount)
                 pass
-            else:
-                # print("regular")
-                sendThread = Thread(target = threadSerial, args = [byteMessage])
-                sendThread.start()
-                busyCount = 0
-                openCount += 1
-                print("OPEN Thread", openCount)
-                # print("Thread GOOD!", busyCount)
-                
         else:
-            print("first")
+            # print("regular")
             sendThread = Thread(target = threadSerial, args = [byteMessage])
             sendThread.start()
+            busyCount = 0
+            openCount += 1
+            # print("OPEN Thread", openCount)
+            # print("Thread GOOD!", busyCount)
 
 def keyPressed():
     global DENS, DENS_PREV, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, BUBBLE_TOGGLE, SNEK_TOGGLE, D_RATE, AMOEBA_TOGGLE, MAGNET_CONNECTION
@@ -298,21 +298,23 @@ def ratio(x):
     # return (x / 2)
     if(x < 0):
         return 0
-    elif (x * 128 / 8) > 127:
+    elif (x * 128 / 32) > 127:
         return 127
     else:
-        return (x * 128 / 8)
+        return (x * 128 / 32)
     
 def count():
     global DENS, WIDTH, FLUID 
     counter = []
     
-    # prev counter
-    # for j in range(WIDTH):
-    #     for i in range(WIDTH):
+    # original counter - appeared to be top to bottom, then left to right
+    # when using 'F' as tester
+    # for i in range(WIDTH):
+    #     for j in range(WIDTH):
     #         counter.append(ratio(DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)]))
      
-    # current counter
+    # current counter - goes left to right, then top to bottom
+    # when using 'F' as tester
     for j in range(WIDTH):
         for i in range(WIDTH):
             counter.append(ratio(DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)]))
