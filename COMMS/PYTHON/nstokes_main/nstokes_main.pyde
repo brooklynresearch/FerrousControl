@@ -304,7 +304,7 @@ def ratio(x):
     elif (x * 128 / 32) > 127:
         return 127
     else:
-        return (x * 128 / 32)
+        return int(x * 128 / 32)
     
 def count():
     global DENS, WIDTH, FLUID 
