@@ -127,7 +127,7 @@ void loop() {
   uint8_t rowIndex = 0;
   if (Serial.available()) {
     // wait a bit for the entire message to arrive
-//    delay(24);
+    delay(24);
     while(Serial.available() > 0){
         uint8_t inByte = Serial.read();
 
