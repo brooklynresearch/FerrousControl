@@ -395,7 +395,7 @@ def initialize_port():
     global INITIALIZED, magnetPort
     print(Serial.list())
     arduinoPort = Serial.list()[3]
-    magnetPort = Serial(this, arduinoPort, 2000000)
+    magnetPort = Serial(this, arduinoPort, 1000000)
     
     INITIALIZED = True
 
