@@ -5,10 +5,13 @@
 #define VERSION 0.0
 #define DATA_DIR_PIN  2
 
+// between 0 and 4
 #define COL 0
 
 //#define TESTER
+// uncomment to individually go down each pwm
 //#define BOARD_TEST
+// uncomment to create a print statement to serial line
 //#define COMMS_TEST
 
 #ifdef COL
