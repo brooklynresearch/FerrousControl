@@ -131,6 +131,13 @@ void loop() {
     while(Serial.available() > 0){
         uint8_t inByte = Serial.read();
 
+        if(inByte > 127){
+          inByte = 127;
+        }
+        else if (inByte < 0){
+          inByte = 0;
+        }
+
       if(byteCount < 320) {
         buffer_1[byteCount] = inByte;
       }
