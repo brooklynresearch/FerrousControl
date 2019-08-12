@@ -64,6 +64,12 @@ uint8_t buffer_2[320];
 uint8_t buffer_3[320];
 uint8_t buffer_4[320];
 uint8_t buffer_5[320];
+//int byteBuffer[packetSize];
+//int buffer_1[320];
+//int buffer_2[320];
+//int buffer_3[320];
+//int buffer_4[320];
+//int buffer_5[320];
 uint32_t packetCount = 0;
 uint32_t byteCount = 0;
 uint16_t checksum = 0;
@@ -73,7 +79,7 @@ uint8_t checkByte = 0;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup() {
-  Serial.begin(1000000);
+  Serial.begin(2000000);
   Serial1.begin(115200);
 //  Serial1.begin(1000000);
   Serial2.begin(115200);
@@ -121,10 +127,9 @@ void loop() {
   uint8_t rowIndex = 0;
   if (Serial.available()) {
     // wait a bit for the entire message to arrive
-    delay(24);
+//    delay(24);
     while(Serial.available() > 0){
-      uint8_t inByte = Serial.read();
-//      byteBuffer[byteCount++] = inByte;
+        uint8_t inByte = Serial.read();
 
       if(byteCount < 320) {
         buffer_1[byteCount] = inByte;
@@ -186,7 +191,7 @@ void loop() {
         lcd.print("  ");
         byteCount = 0;
         checksum = 0;
-        Serial.write('$');
+//        Serial.write('$');
 
       }
 

@@ -49,7 +49,7 @@ INITIALIZED = False
 MAGNET_CONNECTION = False
 
 STARTING = 0
-sf = 10
+sf = 20
 
 #TOGGLES
 AMOEBA_TOGGLE = False
@@ -73,7 +73,7 @@ nay1 = randint(0, WIDTH)
 
 s_tracker = []
 
-def threadSerial(infosend):
+def sendSerial(infosend):
     global magnetPort
 
     if infosend != None:
@@ -81,7 +81,7 @@ def threadSerial(infosend):
 
 # Send Queue
 sendQueue = Queue()
-sendThread = Thread(target = threadSerial, args = [None])
+sendThread = Thread(target = sendSerial, args = [None])
 busyCount = 0
 openCount = 0
 
@@ -195,42 +195,45 @@ def draw():
             except:
                 print("BAD NUMBER", i, idx)
                 byteMessage+=chr(int(round(0.0)))
-        # print(carr)
-        # print(carr[820],mouseX, mouseY)
+        
+        print(carr[-5:], frameRate)
+        sendSerial(byteMessage)
         
         # dummy values to prove sending
         # changes every 1000 frames (~3.3 seconds @ 30 fps)
         # values sent to each arduino alternates by 1
-        byteMessage = ''
-        msg_check = []
-        dween_num = 0
-        entry_num = 0
+        
+        # byteMessage = ''
+        # msg_check = []
+        # dween_num = 0
+        # entry_num = 0
     
-        for dweeners in range(5):
-            for entries in range(320):
-                val = dween_num * 25 + ((frameCount % 1000) / 100)
-                if entry_num % 2 == 0:
-                    val+=1                
-                msg_check.append(val)
-                byteMessage += chr(val)
-                entry_num+=1
-            dween_num+=1
-        print(msg_check, len(msg_check))
+        # for dweeners in range(5):
+        #     for entries in range(320):
+        #         val = dween_num * 25 + ((frameCount % 1000) / 100)
+        #         if entry_num % 2 == 0:
+        #             val+=1                
+        #         msg_check.append(val)
+        #         byteMessage += chr(val)
+        #         entry_num+=1
+        #     dween_num+=1
+        
+        # print(msg_check, len(msg_check))
                 
-            
+        
 
         # thread logic
-        if sendThread.isAlive():
-                busyCount += 1
-                openCount = 0
-                # print("Thread BUSY", busyCount)
-                pass
-        else:
-            # print("regular")
-            sendThread = Thread(target = threadSerial, args = [byteMessage])
-            sendThread.start()
-            busyCount = 0
-            openCount += 1
+        # if sendThread.isAlive():
+        #         busyCount += 1
+        #         openCount = 0
+        #         # print("Thread BUSY", busyCount)
+        #         pass
+        # else:
+        #     # print("regular")
+        #     sendThread = Thread(target = sendSerial, args = [byteMessage])
+        #     sendThread.start()
+        #     busyCount = 0
+        #     openCount += 1
             # print("OPEN Thread", openCount)
             # print("Thread GOOD!", busyCount)
 
@@ -392,7 +395,7 @@ def initialize_port():
     global INITIALIZED, magnetPort
     print(Serial.list())
     arduinoPort = Serial.list()[3]
-    magnetPort = Serial(this, arduinoPort, 1000000)
+    magnetPort = Serial(this, arduinoPort, 2000000)
     
     INITIALIZED = True
 
