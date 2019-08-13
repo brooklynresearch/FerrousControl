@@ -3,9 +3,10 @@ add_library('serial')
 import fluid as Fluid
 from easing_functions import *
 from random import randint 
-from time import sleep
-# from sinewave import renderWave, calcWave
+from time import sleep, time
 import math
+from threading import Thread
+from Queue import Queue
 
 #SineWave
 xspacing = 1     # How far apart should each horizontal location be spaced
@@ -22,297 +23,291 @@ ccounter = 0
 location_tracker = []
 
 #GLOBAL VARIABLES FOR NAVIER_STOKES
-WIDTH = 8
-D_RATE = 0.1
-VISCOSITY = 0.7
-TIME_SPACE = 0.0005
+WIDTH = 40
+sf = 20
+D_RATE = 2
+VISCOSITY = 0.8
+TIME_SPACE = 0.0001
 
-#Global GRID 
+#GLOBAL GRID 
 GRID =[]
-
 FLUID = Fluid.fluid(WIDTH, D_RATE, VISCOSITY, TIME_SPACE)
 
-#Velocity and Density Fields  
+#Velocity and Density Fields
 SIZE = (WIDTH+2)**2
 VEL_HPREV = [0] * SIZE
 VEL_H = [0 for _ in xrange(SIZE)]
 VEL_VPREV = [0] * SIZE
 VEL_V = [0 for _ in xrange(SIZE)]
 DENS = [0 for _ in xrange(SIZE)]
-DENS_PREV = [0] * SIZE
+DENS_PREV = [0 for _ in xrange(SIZE)]
 
 counter = 0
 
-MOUSE_X = 0
-MOUSE_Y = 0
-
 #Serial Connection
-upperPort = None
-lowerPort = None
-img = 0
+magnetPort = None
+INITIALIZED = False
+MAGNET_CONNECTION = False
 
 STARTING = 0
-GLOBAL_TIME = 0
 
-#Movements: 
-BUBBLE_TOGGLE = False
-SNEK_TOGGLE = False
+#TOGGLES
 AMOEBA_TOGGLE = False
+SNEK_TOGGLE = False
+EASING_TOGGLE = False
+TEST_TOGGLE = False
+ON_TOGGLE = False
+testIndex = WIDTH + 1 
 
-sf = 100
+def genrandi(maxn, num):
+    newi = randint(0, maxn)
+    while(newi == num):
+        newi = randint(0, maxn)
+    return newi
 
-def snek():
-    global w  # Width of entire wave
-    w = width + 16
-    # Using a list to store height values for the wave.
-    global yvalues
-    yvalues = [0.0] * (w / xspacing)
-    calcWave()
-    renderWave()
+#Snake Globals
+fcx = randint(0, WIDTH)
+fcy = randint(0, WIDTH)
+nax = genrandi(WIDTH, fcx)
+nay = genrandi(WIDTH, fcy)
+scx = randint(0, WIDTH)
+scy = randint(0, WIDTH)
+nax1 = randint(0, WIDTH)
+nay1 = randint(0, WIDTH)
+
+s_tracker = []
+
+def threadSerial(infosend):
+    global magnetPort
+
+    if infosend != None:
+        magnetPort.write(infosend)
+
+# Send Queue
+sendQueue = Queue()
+sendThread = Thread(target = threadSerial, args = [None])
+busyCount = 0
+openCount = 0
+
+#EASING Globals
+FadeBox = [0 for _ in range(SIZE)]
+ease_range = easelist()
+FrameIndex = 0
+ease_variable = False 
+sign = -1
+
+def reordinator(initial_list):
+    reordered_list = []
     
+    for panel_y in range(5):
+        for panel_x in range(5):
+            for quad_y in range(2):
+                for quad_x in range(2):
+                    for mag_y in range(4):
+                        for mag_x in range(4):
+                            index = mag_x + mag_y * 40 + quad_x * 4 + quad_y * 160 + panel_x * 8 + panel_y * 320
+                            reordered_list.append(initial_list[index])
+                            
+    return reordered_list
+
 def setup():
-    global FLUID, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, upperPort, lowerPort, img, sf, w, yvalues
+    global FLUID, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, sf, w, yvalues
     background(0)
     size(WIDTH * sf, WIDTH * sf)
-    GRID = makeGrid(WIDTH)
-
-    # frameRate(1000)
     
+    #Initializing the Navier Stokes grid.
+    GRID = makeGrid(WIDTH)
+    
+    #Sine Wave variables intialization.
     w = WIDTH * sf / 3
     yvalues = [0.0] * (w / xspacing)
+     
+    #Generating coordinates for snake movements.
+    snake(WIDTH / 3)
     
-    colorMode(RGB)
-    img = loadImage("test.png")
+    frameRate(7)
 
-    for i in xrange(WIDTH):
-        for j in xrange(WIDTH):
-            # DENS[FLUID.xy_coordinate(WIDTH, i, j)] = img.pixels[FLUID.xy_coordinate(WIDTH, i, j)] / 65535 + 256
-            DENS[FLUID.xy_coordinate(WIDTH, i, j)] = 0
-            # print(img.pixels[FLUID.xy_coordinate(WIDTH, i, j)] / 65535 + 256)
-    
-    #Port Initialization
-    print(Serial.list())
-    #Change Port Number as needed
-    arduinoPort = Serial.list()[3]
-    #Increased Baud Rate to 1Mbs
-    magnetPort = Serial(this, arduinoPort, 1000000)
-    
-def rotate_left():
-    global angle, period, xspacing
-    angle -= (TWO_PI / period) * xspacing
-    print("TURNING LEFT")
-    
-def rotate_right():
-    global angle, period, xspacing
-    angle += (TWO_PI / period) * xspacing
-    print("TURNING RIGHT")
-    
-directionxSWITCH = 1
-directionySWTICH = 1
-    
+fr = 30
+fc = 0
+ptime = time()
+rampsign = True
+
 def draw():
-    global counter, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, DENS, DENS_PREV, img, STARTING, BUBBLE_TOGGLE, GLOBAL_TIME, SNEK_TOGGLE, AMOEBA_TOGGLE, directionX, directionY, amplitude, xspacing, yvalues, toggle, ccounter, theta, location_tracker, sf, angle, period, directionxSWITCH, directionySWTICH
-    background(0)
-    GLOBAL_TIME += 1
+    global rampsign, ease_variable, sign, fr, fc, ptime, testIndex, TEST_TOGGLE, EASING_TOGGLE, FrameIndex, FadeBox, ease_range, s_tracker, MAGNET_CONNECTION, INITIALIZED, magnetPort, randposX, randposY, npcounter, counter, GRID, WIDTH, D_RATE, VISCOSITY, TIME_SPACE, VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, DENS, DENS_PREV, STARTING, BUBBLE_TOGGLE, SNEK_TOGGLE, AMOEBA_TOGGLE, directionX, directionY, amplitude, xspacing, yvalues, toggle, ccounter, theta, location_tracker, sf, angle, period, sendThread, busyCount, openCount
     
-    # translate(12,12)
-    if(GLOBAL_TIME % 10 == 0):
+    background(0)
+    
+    # if(frameCount % fr == 0):
+    #     print(frameCount - fc, time() - ptime)
+    #     ptime = time()
+    #     fc = frameCount
+
+    if EASING_TOGGLE:
+        
+        if AMOEBA_TOGGLE == True:
+            AMOEBA_TOGGLE = False
+            
+        if SNEK_TOGGLE == True:
+            SNEK_TOGGLE = Fse
+        
+        if not ease_variable:
+            print("Easing Initiated")
+            for i in range(WIDTH):
+                for j in range(WIDTH):
+                    a = QuadEaseInOut(start=DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)], end= 0, duration= 15)
+
+                    y0 = list(map(a.ease, ease_range))
+                    y0.reverse()
+                    # y0.extend(reversed(y0))
+                    # print(y0)
+                    
+                    FadeBox[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)] =  y0
+            
+            FrameIndex = len(ease_range) - 1
+            
+            ease_variable = True
+            
+        if not (sign + 1):
+            # print("Easing in Process")
+            for i in range(WIDTH):
+                for j in range(WIDTH):
+                    DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)] =  FadeBox[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)][FrameIndex]
+            
+            FrameIndex += 1 * sign
+
+            if FrameIndex == 0:
+                sign = 1
+        else:
+            for i in range(WIDTH):
+                for j in range(WIDTH):
+                    DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)] =  FadeBox[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)][FrameIndex]
+
+            FrameIndex += 1 * sign
+            if FrameIndex == len(ease_range) - 1:
+
+                sign = -1
+    
+    #Snake movement Generation: when the toggle is on, the position coordinates for the snake are generated based on bezier curves stitching. 
+    if SNEK_TOGGLE:
+        snake_length = 3
+        st = frameCount % (len(s_tracker) - snake_length)
+        
+        if st == 0:
+            s_tracker = []
+            snake(WIDTH / 3)
+            
+        else:
+            for i in range(snake_length):
+                x = int(s_tracker[st + i][0])
+                y = int(s_tracker[st + i][1])
+
+                bright = 1
+                DENS[FLUID.xy_coordinate(WIDTH, x + 1, y + 1)] += bright
+                
+            # for i in range(0, snake_length):
+            #     x = int(s_tracker[st - i][0])
+            #     y = int(s_tracker[st - i][1])
+                
+            #     bright = 0.7
+            #     DENS[FLUID.xy_coordinate(WIDTH, x + 1, y + 1)] -= bright / (snake_length + 1 - i)
+  
+    #AMOEBA movements generation
+    if AMOEBA_TOGGLE:
+        directionX += randint(-4,4) * 4
+        directionY -= randint(-1,1)
+        calcWave()
+        renderWave()
+        generate_amoeba()
+    
+    if TEST_TOGGLE:
+        if frameCount % 2 == 0:
+            print("Index %d On" % testIndex)
+            DENS[testIndex - 1] = 0
+            DENS[testIndex] = 1
+            testIndex+=1
+    
+    if(frameCount % 100 == 0):
         VEL_H, VEL_V, VEL_HPREV, VEL_VPREV = FLUID.velocity_step(WIDTH, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, VISCOSITY, TIME_SPACE)
     
-        # for i in location_tracker[:50]:
-        #     center_x = i[0]
-        #     center_y = i[1]
+        if AMOEBA_TOGGLE:
+            for i in location_tracker[:200]:
+                center_x = i[0]
+                center_y = i[1]
+                
+                bright = 1
+                center_x = 4
+                center_y = 4
+                DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] += bright
+                DENS[FLUID.xy_coordinate(WIDTH, center_x, center_y + 1)] += bright
+                # DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y)] += bright
+                # DENS[FLUID.xy_coordinate(WIDTH, center_x + 2, center_y + 1)] += bright
+                # DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 2)] += bright
             
-        #     DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] -= 50
-        #     DENS[FLUID.xy_coordinate(WIDTH, center_x, center_y + 1)] -= 50
-        #     DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y)] -= 50
-        #     DENS[FLUID.xy_coordinate(WIDTH, center_x + 2, center_y + 1)] -= 50
-        #     DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 2)] -= 50
-        
-        # location_tracker = []
+            location_tracker = []
         
     DENS, DENS_PREV = FLUID.density_step(WIDTH, DENS, DENS_PREV, VEL_H, VEL_V, D_RATE, TIME_SPACE) 
     
-    # directionX += randint(0,4) * 4
-    # directionY -= randint(0,1)
-    # calcWave()
-    # renderWave()
-
-    
-    # if toggle:
-    #     amplitude+=4
-    #     xspacing-=0.006
-    #     ccounter+=1
-    #     directionX += 9 * directionxSWITCH
-    #     theta += 0.02
-    #     # print("contracting")
-    #     if ccounter == 20:
-    #         toggle = 0
-    #         ccounter = 0
-    #         if randint(0, 1):
-    #             rotate_right()
-    #             # if directionxSWITCH:
-    #             #     directionxSWITCH *= -1
-    #         else:
-    #             rotate_left()
-            
-    # else:
-    #     amplitude-=4
-    #     xspacing+=0.006
-    #     directionX+=10
-    #     theta -= 0.04
-    #     # print("expanding")
-    #     ccounter+=1
-    #     if ccounter == 20:
-    #         toggle = 1
-    #         ccounter = 0 
-    
-    for i in xrange(WIDTH):
-        for j in xrange(WIDTH):
-            num = FLUID.xy_coordinate(WIDTH, i, j)
-            wind = PVector(VEL_H[num], VEL_V[num])   
-            # drawVector(wind, PVector(i * 20, j * 20, 0))
+    if frameCount % 7 == 0 :
+        for i in xrange(WIDTH):
+            for j in xrange(WIDTH):
+                DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)] -= 0.01
             
     reset_gridcells()
     display_grid()
     
-    if (BUBBLE_TOGGLE):
-        if(GLOBAL_TIME % 3 == 0):
-            DENS = [0 for _ in xrange(SIZE)]
-            bubbly()
-            carr = new_count()
-            # index = 0
-            # magnetBufferUpper = "<MAG,"
-            # magnetBufferLower = "<MAG,"
-            # for i in carr:
-            #     index += 1
-            #     if index < 8:
-            #         magnetBufferUpper += (str(i) + ",")
-            #         #magnetBufferUpper += (str(0) + ",")
-            #     else:
-            #         magnetBufferLower += (str(i) + ",")
-            #         #magnetBufferLower += (str(100) + ",")
-            # magnetBufferUpper += (">")
-            # magnetBufferLower += (">")
-        
-            # print(magnetBufferUpper + magnetBufferLower)
-            # upperPort.write(magnetBufferUpper)
-            
-    if (SNEK_TOGGLE):
-        # if(GLOBAL_TIME % 0 == 0):
-        snek()
-        carr = new_count()
-            # carr = [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-            # index = 0
-            # magnetBufferUpper = "<MAG,"
-            # magnetBufferLower = "<MAG,"
-            # for i in carr:
-            #     index += 1
-            #     if index < 8:
-            #         magnetBufferUpper += (str(i) + ",")
-            #         #magnetBufferUpper += (str(0) + ",")
-            #     else:
-            #         magnetBufferLower += (str(i) + ",")
-            #         #magnetBufferLower += (str(100) + ",")
-            # magnetBufferUpper += (">")
-            # magnetBufferLower += (">")
-        
-            # print(magnetBufferUpper + magnetBufferLower)
-            # upperPort.write(magnetBufferUpper)
-            
-    if (AMOEBA_TOGGLE):
-        if(GLOBAL_TIME % 22 == 0):
-            amoeba()
-        if(GLOBAL_TIME % 175 == 0):
-            DENS = [0 for _ in xrange(SIZE)]
-    
     #Write to Arduino
-    START_SEQUENCE = 1
-    END_SEQUENCE = 2
-    carr = new_count()
-    magnetBuffer = "<MAG,"
-    
-    #Assuming a range of no more then 64 values
-    for i in carr:
-        magnetPort.write(START_SEQUENCE)
-        magnetPort.write(value)
-        magnetPort.write(value >> 8)
-        magnetBuffer += (str(i) + ",")
-        delay(1)
-
-    magnetBufferUpper += (">")
-    magnetPort.write(END_SEQUENCE)
-    magnetPort.write(100)
-    
-    # print(magnetBuffer)
-
-#This function counts how many green boxes there are in each quadrant.
-def count():
-    global VEL_V, VEL_H, WIDTH, FLUID 
-    counter = [0,0,0,0]
-    for i in range(WIDTH):
-        for j in range(WIDTH):
-            magnitude = sqrt(VEL_V[FLUID.xy_coordinate(WIDTH, i, j)]**2 + VEL_H[FLUID.xy_coordinate(WIDTH, i, j)]**2)
-            if magnitude > 0.2:
-                if i < 10 and j < 10:
-                    counter[0]+=1
-                elif i >= 10 and j < 10:
-                    counter[1]+=1
-                elif i < 10 and j >= 10:
-                    counter[2]+=1
-                else:
-                    counter[3]+=1
-    return counter
-
-def ratio(x):
-    if (x * 100 / 256) > 100:
-        return 100
-    else:
-        return (x * 100 / 256)
-    
-def new_count():
-    global DENS, WIDTH, FLUID 
-    counter = []
-    
-    for i in range(WIDTH):
-        for j in range(WIDTH):
-            counter.append(ratio(DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)]))
-
-    return counter
-    
-#This function draws green boxes.
-def drawVector(v, loc):
-    stroke(0, 255, 0)
-    if sqrt(abs(v.x)**2 + abs(v.y)**2) > 0.2:
-        # noStroke()
-        fill(0, 200, 0)
-        rect(loc.x, loc.y, 8, 8)
-        # line(loc.x, loc.y, loc.x + (v.x), loc.y + (v.y))
-
-#Stores the starting position for the external force. 
-def mousePressed():
-    global MOUSE_X, MOUSE_Y, VEL_H, VEL_V
-    
-    MOUSE_X = mouseX
-    MOUSE_Y = mouseY
-
-#Adds an external force on the grid.
-def mouseReleased():
-    global DENS, FLUID, WIDTH, VEL_H, VEL_V, MOUSE_X, MOUSE_Y
-    
-    magnitude = sqrt((MOUSE_X - mouseX)**2 + (MOUSE_Y - mouseY)**2) / 2
-    # print(magnitude)
-    center_x = mouseX // sf
-    center_y = mouseY // sf
-    
-    VEL_H[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] = (mouseX - MOUSE_X) * magnitude // 2
-    VEL_V[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] = (mouseY - MOUSE_Y) * magnitude // 2 
-    
-def mouseDragged():
-    redraw()   
+    if MAGNET_CONNECTION:
+        if not INITIALIZED:
+            initialize_port()
+        
+        pos = 537
+        carr = count()
+        # print(carr[pos])
+        reordered_list = reordinator(carr)
+        
+        # byte message to send
+        byteMessage = ''
+        # for idx, i in enumerate(carr):
+        
+        x = 1
+        if rampsign:
+            j = (frameCount % (127 * x) / float(x))
+        else:
+            j = abs(126 - (frameCount % (127 * x) / float(x)))
+            
+        if j == 126:
+            rampsign = False
+        elif j == 0:
+            rampsign = True
+        else:
+            pass
+        # print(j, len(reordered_list))
+            
+        for idx, i in enumerate(reordered_list):
+            i = j
+            try:
+                byteMessage+=chr(int(round(i)))
+            except:
+                print("BAD NUMBER", i, idx)
+                byteMessage+=chr(int(round(0.0)))
+        
+        # thread logic
+        if sendThread.isAlive():
+            busyCount += 1
+            openCount = 0
+            print("Thread BUSY", busyCount)
+            pass
+        else:
+            # print("regular")
+            sendThread = Thread(target = threadSerial, args = [byteMessage])
+            sendThread.start()
+            busyCount = 0
+            openCount += 1
+            print("OPEN Thread", openCount)
+            # print("Thread GOOD!", busyCount)
 
 def keyPressed():
-    global DENS, DENS_PREV, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, BUBBLE_TOGGLE, SNEK_TOGGLE, AMOEBA_TOGGLE, D_RATE
+    global ON_TOGGLE, TEST_TOGGLE, EASING_TOGGLE, DENS, DENS_PREV, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, BUBBLE_TOGGLE, SNEK_TOGGLE, D_RATE, AMOEBA_TOGGLE, MAGNET_CONNECTION
     
     if ((key == 'R') or (key == 'r')):
         DENS = [0 for _ in xrange(SIZE)]
@@ -322,33 +317,52 @@ def keyPressed():
         VEL_V = [0 for _ in xrange(SIZE)]
         VEL_VPREV = [0 for _ in xrange(SIZE)]
         
-    if ((key == 'D') or (key == 'd')):
-        center_x = mouseX // sf
-        center_y = mouseY // sf
-        
-        DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] -= 10
-        
     if ((key == 'F') or (key == 'f')):
+        D_RATE = 0.05
         center_x = mouseX // sf
         center_y = mouseY // sf
         
-        DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] += 10
-        DENS[FLUID.xy_coordinate(WIDTH, center_x, center_y + 1)] += 10
-        DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y)] += 10
-        DENS[FLUID.xy_coordinate(WIDTH, center_x + 2, center_y + 1)] += 10
-        DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 2)] += 10
+        bval = 1
         
-    if ((key == 'B') or (key == 'b')):
-        D_RATE = 0.3
-        BUBBLE_TOGGLE = not BUBBLE_TOGGLE
-        
+        pos = FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1) 
+        print(pos)
+        DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] += bval
+        DENS[FLUID.xy_coordinate(WIDTH, center_x, center_y + 1)] += bval
+        DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y)] += bval
+        DENS[FLUID.xy_coordinate(WIDTH, center_x + 2, center_y + 1)] += bval
+        DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 2)] += bval
+          
     if ((key == 'S') or (key == 's')):
-        D_RATE = 0.01
+        D_RATE = 0.05
         SNEK_TOGGLE = not SNEK_TOGGLE
+        
+        if SNEK_TOGGLE:
+            print("SNAKE ON")
+        else:
+            print("SNAKE OFF")
     
+    if ((key == 'C') or (key == 'c')):
+        MAGNET_CONNECTION = not MAGNET_CONNECTION
+        
+        if MAGNET_CONNECTION:
+            print("MAGNET CONNECTION ON")
+        else:
+            print("MAGNET CONNECTION OFF")
+        
     if ((key == 'A') or (key == 'a')):
-        D_RATE = 0.5
+        D_RATE = 0.05
         AMOEBA_TOGGLE = not AMOEBA_TOGGLE
+        if AMOEBA_TOGGLE:
+            print("AMOEBA ON")
+        else:
+            print("AMOEBA OFF")
+    
+    if ((key == 'E') or (key == 'e')):
+        EASING_TOGGLE = not EASING_TOGGLE
+        if EASING_TOGGLE:
+            print("EASING ON")
+        else:
+            print("EASING OFF")
         
     if ((key == 'M') or (key == 'm')):
         center_x = mouseX // sf
@@ -356,41 +370,58 @@ def keyPressed():
 
         for i in easelist():
             DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] = i
+    
+    if ((key == 'T') or (key == 't')):
+        TEST_TOGGLE = not TEST_TOGGLE
+        D_RATE = 0.0
         
-def bubbly():
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
-    DENS[FLUID.xy_coordinate(WIDTH, randint(0,100) + 1,  randint(0,100) + 1)] = 256
+        if TEST_TOGGLE:
+            print("TESTING ON")
+        else:
+            DENS = [0 for _ in xrange(SIZE)]
+            print("TESTING OFF")
+            
+    if ((key == 'O') or (key == 'o')):
+        ON_TOGGLE = not ON_TOGGLE
+        D_RATE = 0.0
+        
+        if ON_TOGGLE:
+            DENS = [1 for _ in xrange(SIZE)]
+            print("ALL MAGNETS ON")
+        else:
+            DENS = [0 for _ in xrange(SIZE)]
+            print("ALL MAGNETS OFF")
+            
+    if ((key == 'Q') or (key == 'q')):
+        title = str(time())
+        saveFrame(title + ".png");
+        val_mat = createWriter(title + ".txt")
+        
+        for j in xrange(WIDTH):
+            for i in xrange(WIDTH):
+                val_mat.print("%.2f " % DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)])
+            val_mat.print("\n")
+        
+        val_mat.close()
 
-ONCE = False
-
-def amoeba():
-    global ONCE, AMOEBA_TOGGLE
+def ratio(x):
+    r = x * 127
+    if r > 127:
+        return 127
+    elif r < 0:
+        return 0
+    else:
+        return r
     
-    VISCOSITY = 1
-    
-    if not ONCE:
-        DENS[FLUID.xy_coordinate(WIDTH, randint(0,3) + 1,  randint(0,3) + 1)] = randint(0,256)
-        DENS[FLUID.xy_coordinate(WIDTH, randint(0,3) + 1,  randint(0,3) + 1)] = randint(0,256)
-        DENS[FLUID.xy_coordinate(WIDTH, randint(0,3) + 1,  randint(0,3) + 1)] = randint(0,256)
-        ONCE = False
+def count():
+    global DENS, WIDTH, FLUID
+    counter = []
 
-def find_neighbors(pos):
-    global WIDTH 
-    lt = []
-    for i in range(pos[0] - 1, pos[0] + 2):
-        for j in range(pos[1] - 1, pos[1] + 2):
-            if i != 0 and i != WIDTH + 1 and j != 0 and j != WIDTH + 1:
-                if (i, j) != SNEK_BODY and (i, j) != SNEK_TAIL and (i, j) != SNEK_HEAD:
-                    if abs(SNEK_HEAD[0] - i) + abs(SNEK_HEAD[1] - j) < 2:
-                        lt.append((i,j))
-    return lt
+    for j in range(WIDTH):
+        for i in range(WIDTH):
+            counter.append(ratio(DENS[FLUID.xy_coordinate(WIDTH, i + 1, j + 1)]))
+    
+    return counter
 
 def reset_gridcells():
     global DENS, WIDTH, GRID
@@ -414,7 +445,6 @@ def display_grid():
     for i in xrange(WIDTH):
         for j in xrange(WIDTH):
             if GRID[i][j].tempDens > 0.1:
-                # print(GRID[i][j].tempDens)
                 GRID[i][j].display()
 
 class Cell():
@@ -424,18 +454,16 @@ class Cell():
         self.w = tempW
         self.h = tempH
         self.tempDens = tempDens
+        self.Max = 0
         
     def display(self):
         noStroke()
-        fill(0, self.tempDens, 0)
-        # fill(0, 256, 0)
-        # fill(0, 0, 0, 0)
+        fill(0, self.tempDens * 255, 0)
         rect(self.x,self.y,self.w,self.h)
         
 def calcWave():
     global theta, directionxSWITCH
-    # Increment theta (try different values for 'angular velocity' here
-    
+        
     theta += 0.5
     
     # For every x varlue, calculate a y value with sine function
@@ -443,9 +471,9 @@ def calcWave():
     for i in range(len(yvalues)):
         yvalues[i] = sin(x) * amplitude
         x += dx
-        
+
 def renderWave():
-    global counter, angle, sf, location_tracker
+    global counter, angle, sf, location_tracker, randposX, randposY
     noStroke()
     fill(255)
         
@@ -455,12 +483,44 @@ def renderWave():
         
         val_x = ((val_x) * (cos(angle)) - (val_y) * (sin(angle))) // sf
         val_y = ((val_x) * (sin(angle)) + (val_y) * (cos(angle))) // sf
-        
-        DENS[FLUID.xy_coordinate(WIDTH, val_x + 1, val_y + 1)] = 100
-        DENS[FLUID.xy_coordinate(WIDTH, val_x, val_y + 1)] = 100
-        DENS[FLUID.xy_coordinate(WIDTH, val_x + 1, val_y)] = 100
-        DENS[FLUID.xy_coordinate(WIDTH, val_x + 2, val_y + 1)] = 100
-        DENS[FLUID.xy_coordinate(WIDTH, val_x + 1, val_y + 2)] = 100
-        DENS[FLUID.xy_coordinate(WIDTH, val_x , val_y)] = 100
 
         location_tracker.append((val_x, val_y))
+        
+def generate_amoeba():
+    global angle, period, xspacing
+    angle -= ((TWO_PI / period) * xspacing)*25
+
+#Port Initialization
+def initialize_port():
+    global INITIALIZED, magnetPort
+    print(Serial.list())
+    arduinoPort = Serial.list()[3]
+    magnetPort = Serial(this, arduinoPort, 1000000)
+    
+    INITIALIZED = True
+
+def snake(w):
+    global nax, nay, fcx, fcy, scx, scy, nax1, nay1, s_tracker
+    
+    m = (float(nay) - fcy) / (float(nax) - fcx)
+    b = nay - (m * nax)
+    scx = nax - (fcx - nax)
+    scy = m * scx + b
+    
+    fcx = randint(0, w) 
+    fcy = randint(0, w)
+    nax1 = genrandi(w, fcx)
+    nay1 = genrandi(w, fcy)
+    
+    steps = 400
+    # print(steps)
+    
+    for i in range(0, steps):
+        t = i / float(steps)
+        x = bezierPoint(nax, scx, fcx, nax1, t)
+        y = bezierPoint(nay, scy, fcy, nay1, t)
+        
+        s_tracker.append((x, y))
+        
+    nax = nax1
+    nay = nay1
