@@ -95,6 +95,12 @@ void loop() {
     delay(24);
     while(Serial.available() > 0){
       uint8_t inByte = Serial.read();
+      if (inByte > 127){
+        inByte = 127;
+      }
+      else if (inByte < 0){
+        inByte = 0;
+      }
       byteBuffer[byteCount++] = inByte;
       checksum = (checksum + inByte) % 65535;
       //Serial1.write(inByte);
