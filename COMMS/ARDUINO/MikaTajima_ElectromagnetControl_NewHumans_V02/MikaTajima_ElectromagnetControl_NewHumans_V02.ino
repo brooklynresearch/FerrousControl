@@ -13,7 +13,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 uint8_t COL = 1;
 
 //#define TESTER
-#define BOARD_TEST
+//#define BOARD_TEST
 //#define COMMS_TEST
 
 #define ADDR_PIN_1   A0
@@ -23,8 +23,8 @@ uint8_t COL = 1;
 #define ADDR_PIN_16  10
 uint8_t ADDRESS_PIN[5] = {ADDR_PIN_1, ADDR_PIN_2, ADDR_PIN_4, ADDR_PIN_8, ADDR_PIN_16};
 
-uint16_t START_POS;
-uint16_t STOP_POS;
+uint16_t START_POS = 0;
+uint16_t STOP_POS = 24;
 
 #define RS485_TRANSMIT  HIGH
 #define RS485_RECEIVE   LOW
@@ -39,6 +39,7 @@ Tlc59711 tlc(NUM_TLC);
 #define TOTAL_MAGNETS  24
 #define TOTAL_BOARDS  5
 #define BAUD  1000000
+//#define BAUD  115200
 uint8_t magnetOutput[TOTAL_MAGNETS] = {};
 
 #define MULTIPLIER    1
@@ -65,7 +66,7 @@ void setup() {
   lcd.setCursor(0,1);
   lcd.print("COL: ");
   lcd.print(COL);
-  lcd.print("  BAUD: 1M");
+  lcd.print("  BAUD:1M");
 
 #ifdef COMMS_TEST
   Serial.println("-------------------------------------------");
@@ -76,19 +77,19 @@ void setup() {
 
 #ifdef COL == 1
   START_POS = 0;
-  STOP_POS = TOTAL_MAGNETS;
+  STOP_POS = 24;
 #elif  COL == 2
-  START_POS =  TOTAL_MAGNETS;
-  STOP_POS  =  TOTAL_MAGNETS * 2;
+  START_POS =  24;
+  STOP_POS  =  48;
 #elif  COL == 3
-  START_POS = TOTAL_MAGNETS * 2;
-  STOP_POS  = TOTAL_MAGNETS * 3;
+  START_POS = 48;
+  STOP_POS  = 72;
 #elif  COL == 4
-  START_POS =  TOTAL_MAGNETS * 3;
-  STOP_POS = TOTAL_MAGNETS * 4;
+  START_POS =  72;
+  STOP_POS = 96;
 #elif  COL == 5
-  START_POS = TOTAL_MAGNETS * 4;
-  STOP_POS = TOTAL_MAGNETS * 5;
+  START_POS = 96;
+  STOP_POS = 120;
 #endif
 
   initializeArray();
@@ -96,12 +97,15 @@ void setup() {
 
   Wire.setClock(400000);
 
+  killPower();
+  
   delay(1000);
+  lcd.clear();
 }
 
 void loop() {
 #ifdef BOARD_TEST
-  boardTestHalfPower();
+  boardTestFullPower();
 #else
   readIncomingSerial();
 #endif
@@ -110,11 +114,18 @@ void loop() {
 void readIncomingSerial() {
   if (Serial.available()) {
     //delay(10);
+    
     while (Serial.available() > 0) {
       uint8_t inByte = Serial.read();
       if ((byteCount >= START_POS) && (byteCount < STOP_POS)) {
         //Check with Serial Parser and Python to see if this is or is not necessary
         //magnetOutput[byteCount] = constrain(inByte, 0, 127);
+        /*
+        lcd.setCursor(0,1);
+        lcd.print("BYTE:");
+        lcd.print(inByte);
+        lcd.print("  ");
+        */
         magnetOutput[byteCount] = constrain(inByte, 0, 256);
       }
 #ifdef COMMS_TEST
@@ -124,6 +135,15 @@ void readIncomingSerial() {
       byteCount++;
 
       if (byteCount >= packetSize) {
+        lcd.setCursor(0,0);
+        lcd.print("B:");
+        lcd.print(inByte);
+        lcd.print("  ");
+        lcd.setCursor(8,0);
+        lcd.print("C:");
+        lcd.print(byteCount);
+        lcd.print("  ");
+        
         sendDataToMagnets();
 #ifdef COMMS_TEST
         Serial.println();
@@ -163,6 +183,13 @@ void boardTest() {
   tlc.write();
 }
 
+void boardTestFullPower(){
+  for (int i = 0; i < TOTAL_MAGNETS; i++) {
+    tlc.setChannel(i, 65535);
+  }
+  tlc.write();
+}
+
 void boardTestQuarterPower() {
   for (int i = 0; i < TOTAL_MAGNETS; i++) {
     tlc.setChannel(i, 16384);
@@ -184,10 +211,17 @@ void boardTestHalfPower() {
   tlc.write();
 }
 
+void killPower() {
+  for (int i = 0; i < TOTAL_MAGNETS; i++) {
+    tlc.setChannel(i, 0);
+  }
+  tlc.write();
+}
+
 
 void sendDataToMagnets() {
   for (int i = 0; i < TOTAL_MAGNETS; i++) {
-    tlc.setChannel(i, magnetOutput[i] * 256);
+    tlc.setChannel(i, magnetOutput[i]);
   }
   tlc.write();
 }
