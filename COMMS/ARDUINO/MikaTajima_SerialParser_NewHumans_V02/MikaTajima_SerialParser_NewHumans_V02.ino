@@ -50,19 +50,19 @@ void setup() {
   digitalWrite(DATA_DIR_PIN_4, RS485_TRANSMIT);
   pinMode(DATA_DIR_PIN_5, OUTPUT);
   digitalWrite(DATA_DIR_PIN_5, RS485_TRANSMIT);
-  
+
   // set up the LCD's number of columns and rows:
-  lcd.init();                      // initialize the lcd 
+  lcd.init();                      // initialize the lcd
   lcd.backlight();
   // Print a message to the LCD.
   lcd.print("NEW HUMANS V02");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print("V: ");
   lcd.print(VERSION);
   lcd.print("  B: 1M");
   delay(2000);
   lcd.clear();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   //lcd.print("PKT:");
   lcd.print(" LEN:");
   lcd.print(packetSize);
@@ -73,69 +73,66 @@ void loop() {
   //lcd.setCursor(4,0);
   uint8_t charIndex = 4;
   uint8_t rowIndex = 0;
-  if (Serial.available()) {
-    // wait a bit for the entire message to arrive
-    delay(24);
-    while(Serial.available() > 0){
-        uint8_t inByte = Serial.read();
 
-      if(byteCount < SERIAL_BUF_SIZE) {
-        buffer_1[byteCount] = inByte;
-      }
+  while (Serial.available() > 0) {
+    uint8_t inByte = Serial.read();
 
-      else if (byteCount < (SERIAL_BUF_SIZE * 2)) {
-        buffer_2[byteCount % SERIAL_BUF_SIZE] = inByte;
-      }
+    if (byteCount < SERIAL_BUF_SIZE) {
+      buffer_1[byteCount] = inByte;
+    }
 
-      else if (byteCount < (SERIAL_BUF_SIZE * 3)) {
-        buffer_3[byteCount % SERIAL_BUF_SIZE] = inByte;
-      }
+    else if (byteCount < (SERIAL_BUF_SIZE * 2)) {
+      buffer_2[byteCount % SERIAL_BUF_SIZE] = inByte;
+    }
 
-      else if (byteCount < (SERIAL_BUF_SIZE * 4)) {
-        buffer_4[byteCount % SERIAL_BUF_SIZE] = inByte;
-      }
+    else if (byteCount < (SERIAL_BUF_SIZE * 3)) {
+      buffer_3[byteCount % SERIAL_BUF_SIZE] = inByte;
+    }
 
-      else {
-        buffer_5[byteCount % SERIAL_BUF_SIZE] = inByte;
-      }
+    else if (byteCount < (SERIAL_BUF_SIZE * 4)) {
+      buffer_4[byteCount % SERIAL_BUF_SIZE] = inByte;
+    }
 
-      ++byteCount;
-      
-      checksum = (checksum + inByte) % 65535;
+    else {
+      buffer_5[byteCount % SERIAL_BUF_SIZE] = inByte;
+    }
 
-      //Serial1.write(inByte);
-      if(byteCount == packetSize) {
-        Serial1.write(buffer_1, SERIAL_BUF_SIZE);
-        Serial1.flush(); // block until sent
-        
-        Serial3.write(buffer_2, SERIAL_BUF_SIZE);
-        Serial3.flush(); // block until sent
+    ++byteCount;
 
-        Serial2.write(buffer_3, SERIAL_BUF_SIZE);
-        Serial2.flush(); // block until sent
+    checksum = (checksum + inByte) % 65535;
 
-        Serial4.write(buffer_4, SERIAL_BUF_SIZE);
-        Serial4.flush(); // block until sent
+    //Serial1.write(inByte);
+    if (byteCount == packetSize) {
+      Serial1.write(buffer_1, SERIAL_BUF_SIZE);
+      Serial1.flush(); // block until sent
 
-        Serial5.write(buffer_5, SERIAL_BUF_SIZE);
-        Serial5.flush(); // block until sent
+      Serial3.write(buffer_2, SERIAL_BUF_SIZE);
+      Serial3.flush(); // block until sent
 
-        lcd.setCursor(charIndex, rowIndex);
-        lcd.print(" LEN:");
-        lcd.print(byteCount);
-        lcd.setCursor(0,1);
-        lcd.print("CHK:");
-        lcd.print(checkByte);
-        lcd.print("  ");
-        byteCount = 0;
-        checksum = 0;
-//        Serial.write('$');
+      Serial5.write(buffer_3, SERIAL_BUF_SIZE);
+      Serial5.flush(); // block until sent
 
-      }
+      Serial2.write(buffer_4, SERIAL_BUF_SIZE);
+      Serial2.flush(); // block until sent
 
-      if(byteCount == (packetSize - 1)){
-        checkByte = inByte;
-      }
+      Serial4.write(buffer_5, SERIAL_BUF_SIZE);
+      Serial4.flush(); // block until sent
+
+      lcd.setCursor(charIndex, rowIndex);
+      lcd.print(" LEN:");
+      lcd.print(byteCount);
+      lcd.setCursor(0, 1);
+      lcd.print("CHK:");
+      lcd.print(checkByte);
+      lcd.print("  ");
+      byteCount = 0;
+      checksum = 0;
+      //        Serial.write('$');
+
+    }
+
+    if (byteCount == (packetSize - 1)) {
+      checkByte = inByte;
     }
   }
 }
