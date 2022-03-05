@@ -62,7 +62,7 @@ sf = 1
 
 #TOGGLES
 SNEK_TOGGLE = False
-TEST_TOGGLE = False
+TEST_TOGGLE = True
 ON_TOGGLE = False
 MORPH_TOGGLE = False
 BLACK_OUT = False
