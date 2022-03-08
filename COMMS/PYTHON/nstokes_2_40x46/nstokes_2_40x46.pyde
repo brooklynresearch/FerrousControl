@@ -11,8 +11,22 @@ import struct
 from threading import Thread
 import struct
 
-TILE_1 = False
-LETTER_MODE = False # TESTING: Send ASCII 'A' for all values
+'''
+KEYBOARD CONTROLS:
+    s: toggle snek mode
+    m: toggle morph mode
+    t: toggle test sequence (if snek or morph is active, toggle that off before using this)
+    o: all magnets on
+    r: reset all to 0
+    f: activate area around mouse pointer
+    d: activate single magnet under mouse pointer
+'''
+
+DEBUG_MODE = False # when true, program only runs magnet test sequence. Same test as 't' key
+
+
+WINDOW_WIDTH = 720 # ** width and height
+WINDOW_HEIGHT = int(720 * 46/40)
 
 #GLOBAL VARIABLES FOR NAVIER_STOKES
 WIDTH = 40
@@ -26,7 +40,7 @@ GRID =[]
 FLUID = Fluid.fluid(WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE) 
 
 #Velocity and Density Fields
-SIZE = (WIDTH+2)*(HEIGHT+2) # ** NEW V2.0
+SIZE = (WIDTH+2)*(HEIGHT+2)
 VEL_HPREV = [0] * SIZE
 VEL_H = [0 for _ in xrange(SIZE)]
 VEL_VPREV = [0] * SIZE
@@ -34,40 +48,31 @@ VEL_V = [0 for _ in xrange(SIZE)]
 DENS = [0 for _ in xrange(SIZE)]
 DENS_PREV = [0] * SIZE
 
+
 #Serial Connection
-magnetPort = None
-magnetPort2 = None
+serialPortAddresses = ['/dev/cu.usbmodem112386001', # top left
+                       '/dev/cu.usbmodem51843401',  # top right
+                       '/dev/cu.usbmodem112386201', # bottom left
+                       '/dev/cu.usbmodem112386301'] # bottom right
 
-# ** Need to change these for linux
-# Mac Mini
-#magnetPortAddresses = [
-#               u'/dev/cu.usbmodem5804040',
-#               u'/dev/cu.usbmodem4927000',
-#               u'/dev/cu.usbmodem5813060',
-#               u'/dev/cu.usbmodem4331810',
-#               u'/dev/cu.usbmodem4331800']
-
-# ** Linux version
-# magnetPortAddresses = [u'/dev/ttyACM0']
-
-# Version 2.0
-magnetPortAddresses = ['/dev/cu.usbmodem112386001']
-
-magnetPorts = []
+serialPorts = []
 INITIALIZED = False
-MAGNET_CONNECTION = False
 
-STARTING = 0
-sf = 1
+sf = 1 # cell size
 
 #TOGGLES
-SNEK_TOGGLE = False
-TEST_TOGGLE = True
+SNEK_TOGGLE = True
+TEST_TOGGLE = False
 ON_TOGGLE = False
 MORPH_TOGGLE = False
 BLACK_OUT = False
-testIndex = WIDTH + 2
-testStep = -1 # ** mine
+
+if DEBUG_MODE:
+    SNEK_TOGGLE = False
+    TEST_TOGGLE = True
+
+testStep =  -1
+#testStep = 22 * (WIDTH)
 
 def genrandi(maxn, num):
     newi = randint(0, maxn)
@@ -92,7 +97,6 @@ render = []
 shape0 = []
 shape1 = []
 
-state = False
 morph_refresh = True
 
 pset_0 = None
@@ -107,77 +111,12 @@ lastDistance = 0
 
 FRAME_BUFFER = None # ** image object, to write pixels from GRID
 
-def sendSerial(infosend, port):
-    global magnetPorts
-
-    #print("SENDING")
-
-    if infosend != None and port < len(magnetPorts):
-
-        try:
-            # as byte message
-            # msg = byteConverter(infosend)
-            # magnetPorts[port].write(msg)
-            #magnetPorts[port].write(255)
-            for i in range(len(infosend)):
-                magnetPorts[port].write(infosend[i])
-                # magnetPorts[port].write(i % 40)
-                
-        except:
-            # print("error in send", port)
-            pass
-
-'''
-def byteConverter(inlist):
-    byteMessage = ''
-    for idx, i in enumerate(inlist):
-        try:
-            val = 127 if idx < 24 else 0
-            # val = i
-            byteMessage+=chr(int(round(val)))
-        except:
-            print("BAD NUMBER", i, idx)
-            byteMessage+=chr(int(round(0.0)))
-            
-    return byteMessage
-'''
-
-# Send
-busyCount = 0
-openCount = 0
-startTime = time()
-startFrame = 0
-
-WINDOW_WIDTH = 720 # ** width and height
-WINDOW_HEIGHT = int(720 * 46/40)
-
-'''
-# ** IMPROVEMENT: whatever this is doing, this is not the way to do it
-def reordinator(initial_list): # ** done every frame before sending to arduino. Because magnet array is larger than GRID?
-    reordered_list = []
-    
-    # ** looks worse than it is. 1600 steps, same as iterating through GRID
-    for panel_y in range(5):
-        for panel_x in range(5):
-            for quad_y in range(2):
-                for quad_x in range(2):
-                    for mag_y in  range(4):
-                        for mag_x in range(4):
-                            index = mag_x + mag_y * 40 + quad_x * 4 + quad_y * 160 + panel_x * 8 + panel_y * 320
-                            reordered_list.append(initial_list[index])
-                            
-    return reordered_list
-    # return initial_list
-'''
 
 def setup():
-    # ** IMPROVEMENT: decouple display window from the calculations by creating an image object with 42 x 42 pixels
-    # ** which gets drawn to the canvas every update. change display_grid and the MORPH mode section in update
-    # ** to write to the image pixels instead of the window. https://py.processing.org/reference/createImage.html
-        
     global FLUID, GRID, WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE, sf, w, yvalues, FRAME_BUFFER
-    background(0)
+
     size(WINDOW_WIDTH, WINDOW_HEIGHT, P2D) # window size
+    background(0)
 
     #Initializing the Navier Stokes grid.
     GRID = makeGrid(WIDTH, HEIGHT) # ** Grid of Cells
@@ -187,25 +126,24 @@ def setup():
     #Generating coordinates for snake movements.
     snake(WIDTH, HEIGHT)
     frameRate(25)
-    strokeWeight(0)
-    smooth(2)
+    #strokeWeight(0)
+    #smooth(2)
 
     initialize_port()
+    
+    #time.sleep(2)
 
-ramp_up = True
-power = 0
 
 timer = randint(4500, 5250)
-state = 0
 multiplier = 1.0
 mode_idx = 0
 
 def draw():
-    global lastDistance, multiplier, mode_idx, BLACK_OUT, state, timer, MORPH_TOGGLE, rand_lt, randspeed, img_idx, morph_refresh, src, state, render, shape0, shape1, pset_0, cset_0, pset_1, pset_1, src_cv, det_cv,\
-        ramp_up, power, testIndex, TEST_TOGGLE, s_tracker, MAGNET_CONNECTION, INITIALIZED, magnetPort, randposX, randposY, GRID, WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE, VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, \
-        DENS, DENS_PREV, STARTING, BUBBLE_TOGGLE, SNEK_TOGGLE, AMOEBA_TOGGLE, sf, sendThread, busyCount, openCount, startTime, startFrame, FRAME_BUFFER, TILE_1, testStep
+    global lastDistance, multiplier, mode_idx, BLACK_OUT, timer, MORPH_TOGGLE, rand_lt, randspeed, img_idx, morph_refresh, src, render, shape0, shape1, pset_0, cset_0, pset_1, pset_1, src_cv, det_cv,\
+        TEST_TOGGLE, s_tracker, INITIALIZED, randposX, randposY, GRID, WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE, VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, \
+        DENS, DENS_PREV, SNEK_TOGGLE, sf, FRAME_BUFFER, testStep
+    
     background(0)
-
     
     # ** timer is used to switch between SNEK and MORPH modes by flipping SNEK_TOGGLE and MORPH_TOGGLE.
     # ** SNEK mode is a moving peak that follows generative bezier curves. Only mode where navier-stokes is used.
@@ -253,7 +191,6 @@ def draw():
     # print("Timer: %d, SNEK: %d, MORPH: %d, BLACK: %d " % (timer, SNEK_TOGGLE, MORPH_TOGGLE, BLACK_OUT))
         
     if MORPH_TOGGLE:
-        #FRAME_BUFFER.translate(1, 1)
         totalDistance = 0
         
         if morph_refresh: # ** set new start and target shapes
@@ -262,18 +199,13 @@ def draw():
     
         # ** each vertex in the current shape
         for i in range(len(render)):
-            if state:
-                v1 = shape0[i]
-                render = shape1
-            else:
-                v1 = shape1[i]
-                render = shape0
+            v1 = shape1[i]
+            render = shape0
             
             # Get the vertex we will draw.
             v2 = render[i]
             
             # Lerp to the target
-            # print(v1, v2)
             v2.lerp(v1, randspeed)
     
             # Check how far we are from target.
@@ -289,9 +221,9 @@ def draw():
         lastDistance = totalDistance
         
         FRAME_BUFFER.beginDraw()
+        FRAME_BUFFER.fill(255)
         # Draw a polygon that makes up all the vertices
         FRAME_BUFFER.beginShape()
-        FRAME_BUFFER.fill(255)
         for vector in render:
             FRAME_BUFFER.vertex(vector.x, vector.y)
         FRAME_BUFFER.endShape()
@@ -300,13 +232,6 @@ def draw():
         
         FRAME_BUFFER.loadPixels()
         
-        # scene = [(p & 255) / float(255) for p in pixels]
-        
-        # if scene == DENS:
-        #     morph_refresh = True
-        #     lastDistance = 0 
-        
-        #DENS = [(p & 255) / float(255) for p in FRAME_BUFFER.pixels] # ** convert screen pixels into floats and load into density matrix.
         for i in range(len(FRAME_BUFFER.pixels)):
             DENS[i] = (FRAME_BUFFER.pixels[i] & 255) / float(255)
         
@@ -340,76 +265,24 @@ def draw():
     # ** update cells in grid using multiplier based on timer. Without this loop, green never fades to black in SNEK mode
     for i in xrange(HEIGHT):
         for j in xrange(WIDTH):
-            #pass
             DENS[FLUID.xy_coordinate(WIDTH, j + 1, i + 1)] -= 0.004
             DENS[FLUID.xy_coordinate(WIDTH, j + 1, i + 1)] = DENS[FLUID.xy_coordinate(WIDTH, j + 1, i + 1)] * multiplier
     
 
-    if TILE_1:
-        DENS = Tests.test_tile_map(0, 0, WIDTH+2, HEIGHT+2)
-    
-    # ** IMPROVEMENT: above loop and the next two function calls all iterate through DENS or GRID
-    # ** which have the same dimensions so these should be combined
     reset_gridcells()
     display_grid()
     
     image(FRAME_BUFFER, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
     
-    xscale = 720 / 40
-    yscale = WINDOW_HEIGHT / 46
-    
-    '''
-    noFill()
-    stroke(0, 0, 255)
-    rect(0, 0, int(20 * xscale), int(20*yscale))
-    stroke(255, 0, 0)
-    rect(0, 0, int(4*xscale), int(4*yscale))
-    '''
-
-
-
     #Write to Arduino
     
-    if INITIALIZED: # IMPROVEMENT: combine the count() and reordinator() steps into single loop
-        carr = count() # ** iterate through DENS, converting values for sending
-        # reordered_list = reordinator(carr) # ** iterate through carr, which is converted values from DENS
-        
-        reordered = MagnetMap.map_parser(0, 0, WIDTH+2, HEIGHT+ 2, carr)
-        #print("LEN(reordered): " + str(len(reordered)))
+    if INITIALIZED:
+        send_to_parsers()
 
-        
 
-        #print("REORDERED[:24] " + str(reordered[:24]))
-        sendSerial(reordered, 0)
-        # sendSerial(reordered[600:640], 1)
-        # sendSerial(reordered_list[640:960], 2)
-        # sendSerial(reordered_list[960:1280], 3)
-        # sendSerial(reordered_list[1280:1600], 4)
-    
-    # ** Number of times iterating through WIDTH x WIDTH arrays every draw()
-    # ** SNEK mode: 11
-    # **       6 in FLUID.density_step (5 in lin_solve, 1 in advect)
-    # **       1 in line 303
-    # **       1 in reset_gridcells()
-    # **       1 in display_grid()
-    # **       1 in count()
-    # **       1 in reordinator()
-    # ** MORPH mode: 6
-    # **       1 in line 270
-    # **       1 in line 303
-    # **       1 in reset_gridcells()
-    # **       1 in display_grid()
-    # **       1 in count()
-    # **       1 in reordinator()
-    
-def stop():
-    # ** IMPROVEMENT: clear & close serial connections here
-    # ** https://www.processing.org/reference/libraries/serial/Serial_stop_.html
-    close_ports()
-    print("exiting")
         
 def keyPressed():
-    global testIndex, testStep, MORPH_TOGGLE, ON_TOGGLE, TEST_TOGGLE, DENS, DENS_PREV, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, BUBBLE_TOGGLE, SNEK_TOGGLE, D_RATE, MAGNET_CONNECTION, LETTER_MODE
+    global testIndex, testStep, MORPH_TOGGLE, ON_TOGGLE, TEST_TOGGLE, DENS, DENS_PREV, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, SNEK_TOGGLE, D_RATE
     
     if ((key == 'R') or (key == 'r')): # ** set all to 0
         DENS = [0 for _ in xrange(SIZE)]
@@ -420,14 +293,19 @@ def keyPressed():
         VEL_VPREV = [0 for _ in xrange(SIZE)]
         
     if ((key == 'D') or (key == 'd')): # ** set pixel under mouse pointer to 100
-        center_x = mouseX // sf
-        center_y = mouseY // sf
+        # map screen pixel to magnet coords
+        center_x = int(float(mouseX) / WINDOW_WIDTH * WIDTH)
+        center_y = int(float(mouseY) / WINDOW_HEIGHT * HEIGHT)
         
+        print("MOUSE " + str(center_x) + ", " + str(center_y))
         DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] = 100
         
     if ((key == 'F') or (key == 'f')): # ** set pixels to 100 in area around mouse pointer
-        center_x = mouseX // sf
-        center_y = mouseY // sf
+        # map screen pixel to magnet coords
+        center_x = int(float(mouseX) / WINDOW_WIDTH * WIDTH)
+        center_y = int(float(mouseY) / WINDOW_HEIGHT * HEIGHT)
+        
+        print("MOUSE " + str(center_x) + ", " + str(center_y))
         
         bval = 100
         DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] += bval
@@ -445,14 +323,6 @@ def keyPressed():
         else:
             print("SNAKE OFF")
     
-    if ((key == 'C') or (key == 'c')):
-        MAGNET_CONNECTION = not MAGNET_CONNECTION
-        
-        if MAGNET_CONNECTION:
-            print("MAGNET CONNECTION ON")
-        else:
-            print("MAGNET CONNECTION OFF")
-    
     if ((key == 'M') or (key == 'm')):
         MORPH_TOGGLE = not MORPH_TOGGLE
         
@@ -460,17 +330,9 @@ def keyPressed():
             print("MORPH ON")
         else:
             print("MORPH OFF")
-    
-    if ((key == 'N') or (key == 'n')):
-        center_x = mouseX // sf
-        center_y = mouseY // sf
-
-        for i in easelist():
-            DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 1)] = i
             
     if ((key == 'T') or (key == 't')):
         TEST_TOGGLE = not TEST_TOGGLE
-        #testIndex = WIDTH + 1
         testStep = -1
         D_RATE = 0.0
         
@@ -490,11 +352,12 @@ def keyPressed():
         else:
             DENS = [0 for _ in xrange(SIZE)]
             print("ALL MAGNETS OFF")
+            
+
+def stop():
+    close_ports()
+    print("exiting")
     
-    if ((key == 'A') or (key == 'a')):
-        # COMMS TEST: send letter A
-        # send_char('A', 600, 0)
-        LETTER_MODE = not LETTER_MODE
 
 def ratio(x): # convert float to int within [0, 127]
     # return (x / 2)
@@ -505,11 +368,10 @@ def ratio(x): # convert float to int within [0, 127]
     else:
         return int(x * 127)
     
-def count(): # ** make list of converted density values to send to arduino. IMPROVEMENT: take array as arg instead of creating new one
+def count(): # ** make list of converted density values to send to arduino
     global DENS, WIDTH, HEIGHT, FLUID
     counter = []
     
-
     # current counter - goes left to right, then top to bottom
     for i in range(HEIGHT+2):
         for j in range(WIDTH+2):
@@ -517,6 +379,39 @@ def count(): # ** make list of converted density values to send to arduino. IMPR
 
 
     return counter
+
+def send_to_parsers():
+    global WIDTH, HEIGHT, magnetPorts
+    
+    n_parsers = len(serialPorts)
+    
+    carr = count() # ** convert values for sending
+    
+    x_index = 0
+    y_index = 0
+    
+    for n in range(n_parsers):
+        if n == 2:
+            y_index += 1
+            x_index = 0
+        mapped = MagnetMap.map_parser(x_index, y_index, WIDTH + 2, HEIGHT + 2, carr)
+        sendSerial(mapped, n)
+        x_index += 1
+
+def sendSerial(infosend, port):
+    global serialPorts
+
+    #print("SENDING")
+
+    if infosend != None and port < len(serialPorts):
+
+        try:
+            for i in range(len(infosend)):
+                serialPorts[port].write(infosend[i])            
+        except Exception as err:
+            print("[!!!] Exception in sendSerial. Port = " + str(port))
+            print(err)
+
 
 def reset_gridcells():
     global DENS, WIDTH, HEIGHT, GRID
@@ -535,15 +430,11 @@ def makeGrid(wth,hgt):
             
     return GRID
 
-def display_grid(): # ** IMPROVEMENT: combine this with reset_gridcells to reduce number of iterations through GRID each frame
+def display_grid():
     global GRID, WIDTH, HEIGHT, FRAME_BUFFER
 
     FRAME_BUFFER.beginDraw()
     FRAME_BUFFER.background(0)
-
-    #FRAME_BUFFER.fill(255, 255, 255)
-    #FRAME_BUFFER.rect(0, 0, 25, 25)
-    #FRAME_BUFFER.noSmooth()
 
     FRAME_BUFFER.noStroke()
     for i in xrange(HEIGHT):
@@ -568,34 +459,33 @@ class Cell(): # ** an element in the grid / a pixel
 
 #Port Initialization
 def initialize_port():
-    global INITIALIZED, magnetPort, magnetPort2, magnetPortAddresses, magnetPorts
+    global INITIALIZED, serialPortAddresses, serialPorts
 
     try:
         print("INITIALIZING")
-        #for each in magnetPortAddresses:
-        #    serialPort = Serial(this, each, 1000000) # ** is this baud rate correct?
-        #   magnetPorts.append(serialPort)
-        
-        serialPort = Serial(this, magnetPortAddresses[0], 1000000)
-        magnetPorts.append(serialPort)
+        for each in serialPortAddresses:
+            serialPort = Serial(this, each, 1000000)
+            serialPorts.append(serialPort)
         
         INITIALIZED = True
         print("ARDUINO SERIAL INITIALIZED")
-    except:
-        pass
+    except Exception as err:
+        print("[!!!] Exception in initialize_port")
+        print(err)
         
 def close_ports():
     # ** https://www.processing.org/reference/libraries/serial/Serial_stop_.html
-    global INITIALIZED, magnetPorts
+    global INITIALIZED, serialPorts
 
     if INITIALIZED:
         try:
             print("CLOSING PORTS")
-            for p in magnetPorts:
+            for p in serialPorts:
                 p.clear()
                 p.stop()
-        except:
-            print("EXCEPTION in close_ports: ") # TODO catch and print the exception
+        except Exception as err:
+            print("[!!!] EXCEPTION in close_ports")
+            print(err)
     
     
 def snake(w, h):
@@ -636,8 +526,6 @@ def set_morphing():
     # ** then in draw, vertices in start are lerped to target until they are close enough
     # ** which triggers another call to set_morphing.
 
-    # ** IMPROVEMENT: precompute and save the vertex data for all shapes in a single file so we can stop using openCV
-    # ** and stop loading files in frame update
     global img_idx, morph_refresh, render, shape0, shape1, pset_0, cset_0, pset_1, pset_1, src_cv, det_cv
     
     render = []
@@ -649,9 +537,6 @@ def set_morphing():
     # ** this function is called during draw(), so loading these files is probably causing the lag when a new shape is chosen
     src = loadImage("s" + str(img_idx) + ".png")
     det = loadImage("s" + str(new_idx) + ".png")
-    
-    # src.resize(500, 500)
-    # det.resize(500, 500)
     
     src_cv = OpenCV(this, src)
     det_cv = OpenCV(this, det)
