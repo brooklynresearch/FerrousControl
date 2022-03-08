@@ -52,8 +52,8 @@ DENS_PREV = [0] * SIZE
 #Serial Connection
 serialPortAddresses = ['/dev/cu.usbmodem112386001', # top left
                        '/dev/cu.usbmodem51843401',  # top right
-                       '/dev/cu.usbmodem112386201', # bottom left
-                       '/dev/cu.usbmodem112386301'] # bottom right
+                       '/dev/cu.usbmodem112386301', # bottom left
+                       '/dev/cu.usbmodem112386201'] # bottom right
 
 serialPorts = []
 INITIALIZED = False
