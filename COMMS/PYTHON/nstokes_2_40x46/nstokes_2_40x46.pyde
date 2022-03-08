@@ -7,9 +7,9 @@ import tests as Tests
 from random import randint 
 from time import sleep, time
 import math
-import struct
-from threading import Thread
-import struct
+#import struct
+#from threading import Thread
+#import struct
 
 '''
 KEYBOARD CONTROLS:
@@ -111,27 +111,27 @@ lastDistance = 0
 
 FRAME_BUFFER = None # ** image object, to write pixels from GRID
 
+def settings():
+    size(WINDOW_WIDTH, WINDOW_HEIGHT) # window size
+    smooth(2)
 
 def setup():
     global FLUID, GRID, WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE, sf, w, yvalues, FRAME_BUFFER
 
-    size(WINDOW_WIDTH, WINDOW_HEIGHT, P2D) # window size
     background(0)
 
     #Initializing the Navier Stokes grid.
     GRID = makeGrid(WIDTH, HEIGHT) # ** Grid of Cells
 
-    FRAME_BUFFER = createGraphics(WIDTH + 2, HEIGHT + 2, P2D) # ** offscreen renderer
+    FRAME_BUFFER = createGraphics(WIDTH + 2, HEIGHT + 2) # ** offscreen renderer
 
     #Generating coordinates for snake movements.
     snake(WIDTH, HEIGHT)
     frameRate(25)
-    #strokeWeight(0)
-    #smooth(2)
+    strokeWeight(0)
+
 
     initialize_port()
-    
-    #time.sleep(2)
 
 
 timer = randint(4500, 5250)
@@ -519,7 +519,7 @@ def linspace(a, b, n=100):
     diff = (float(b) - a)/(n - 1)
     return [diff * i + a  for i in range(n)]
 
-def set_morphing(): 
+def set_morphing():
     # ** called in draw when MORPH mode is active.
     # ** chooses two random images from data/, uses opencv to find polygons in each
     # ** One is start shape, other is target
@@ -568,7 +568,7 @@ def set_morphing():
         
         render.append(pset_1[int(i)])
     
-    g.removeCache(src)
-    g.removeCache(det)
+    # g.removeCache(src)
+    # g.removeCache(det)
     morph_refresh = False
     img_idx = new_idx
