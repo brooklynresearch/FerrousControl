@@ -31,7 +31,7 @@ WINDOW_HEIGHT = int(720 * 46/40)
 #GLOBAL VARIABLES FOR NAVIER_STOKES
 WIDTH = 40
 HEIGHT = 46 # ** NEW V2.0
-D_RATE = 0.2
+D_RATE = 0.8
 VISCOSITY = 0.8
 TIME_SPACE = 0.0001
 
@@ -127,14 +127,19 @@ def setup():
 
     #Generating coordinates for snake movements.
     snake(WIDTH, HEIGHT)
-    frameRate(25)
+    frameRate(30)
     strokeWeight(0)
 
 
     initialize_port()
 
-
-timer = randint(4500, 5250)
+snake_interval_min = 2500
+snake_interval_max = 3250
+blackout_interval_min = 250
+blackout_interval_max = 375
+morph_interval_min = 1500
+morph_interval_max = 2250
+timer = randint(snake_interval_min, snake_interval_max)
 multiplier = 1.0
 mode_idx = 0
 
@@ -157,23 +162,23 @@ def draw():
         if mode_idx == 0:
             SNEK_TOGGLE = True
             BLACK_OUT = False
-            timer += randint(4500, 5250)
+            timer += randint(snake_interval_min, snake_interval_max)
             
         elif mode_idx == 1:
             BLACK_OUT = True
             SNEK_TOGGLE = False
-            timer += randint(250, 375)
+            timer += randint(blackout_interval_min, blackout_interval_max)
                              
         elif mode_idx == 2:
             morph_refresh = True
             MORPH_TOGGLE = True
             BLACK_OUT = False
-            timer += randint(1500, 2250)
+            timer += randint(morph_interval_min, morph_interval_max)
             
         else:
             BLACK_OUT = True
             MORPH_TOGGLE = False
-            timer += randint(250, 375)
+            timer += randint(blackout_interval_min, blackout_interval_max)
     
     timer -= 1 
     
@@ -501,7 +506,7 @@ def snake(w, h):
     nax1 = genrandi(w, fcx)
     nay1 = genrandi(h, fcy)
     
-    steps = 185
+    steps = 108 #185
     
     for i in range(0, steps):
         t = i / float(steps)
