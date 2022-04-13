@@ -9,10 +9,11 @@ Requirements:
 
 ## PYTHON
 - steps variable in snake effectively changes speed with fewer steps being fater
-- framerate also adjusts speed but for everything
+- framerate also adjusts speed but for everything at once
 
 ## Startup
 - java -jar /Users/newhumans/Documents/GitHub/FerrousControl/COMMS/PYTHON/nstokes_2_40x46/processing-py.jar /Users/newhumans/Documents/GitHub/FerrousControl/COMMS/PYTHON/nstokes_2_40x46/nstokes_2_40x46.pyde
+- above was done as part of a Utilities Automator script that starts on login
 
 ### Resources
 - [USB Serial Communication](https://www.pjrc.com/teensy/td_serial.html)
