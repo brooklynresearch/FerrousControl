@@ -31,9 +31,9 @@ WINDOW_HEIGHT = int(720 * 46/40)
 #GLOBAL VARIABLES FOR NAVIER_STOKES
 WIDTH = 40
 HEIGHT = 46 # ** NEW V2.0
-D_RATE = 0.8
-VISCOSITY = 0.8
-TIME_SPACE = 0.0001
+D_RATE = 0.1
+VISCOSITY = 0.2
+TIME_SPACE = 0.001
 
 #GLOBAL GRID 
 GRID =[]
@@ -127,7 +127,7 @@ def setup():
 
     #Generating coordinates for snake movements.
     snake(WIDTH, HEIGHT)
-    frameRate(30)
+    frameRate(25)
     strokeWeight(0)
 
 
@@ -506,7 +506,7 @@ def snake(w, h):
     nax1 = genrandi(w, fcx)
     nay1 = genrandi(h, fcy)
     
-    steps = 108 #185
+    steps = 140 #185
     
     for i in range(0, steps):
         t = i / float(steps)
