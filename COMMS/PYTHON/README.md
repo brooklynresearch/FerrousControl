@@ -8,8 +8,10 @@ Requirements:
 - [Robust Serial Library](https://github.com/araffin/arduino-robust-serial)
 
 ## PYTHON
-- steps variable in snake effectively changes speed with fewer steps being fater
+- steps variable in snake effectively changes speed with fewer steps being faster
 - framerate also adjusts speed but for everything at once
+- keyboard toggle for modes needs rewrite
+- original code may have an issue with viscosity in fluid class with viscosity
 
 ## Startup
 - java -jar /Users/newhumans/Documents/GitHub/FerrousControl/COMMS/PYTHON/nstokes_2_40x46/processing-py.jar /Users/newhumans/Documents/GitHub/FerrousControl/COMMS/PYTHON/nstokes_2_40x46/nstokes_2_40x46.pyde
