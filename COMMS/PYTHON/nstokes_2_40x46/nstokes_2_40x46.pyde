@@ -16,6 +16,7 @@ KEYBOARD CONTROLS:
     s: toggle snek mode
     m: toggle morph mode
     t: toggle test sequence (if snek or morph is active, toggle that off before using this)
+    b: toggle bloom mode
     o: all magnets on
     r: reset all to 0
     f: activate area around mouse pointer
@@ -23,7 +24,7 @@ KEYBOARD CONTROLS:
 '''
 
 DEBUG_MODE = False # when true, program only runs magnet test sequence. Same test as 't' key
-
+NO_SERIAL_MODE = False
 
 WINDOW_WIDTH = 720 # ** width and height
 WINDOW_HEIGHT = int(720 * 46/40)
@@ -34,6 +35,11 @@ HEIGHT = 46 # ** NEW V2.0
 D_RATE = 0.1
 VISCOSITY = 0.2
 TIME_SPACE = 0.001
+
+#GLOBAL VARIABLES FOR Bloom_NAVIER_STOKES
+BLOOM_D_RATE = 0.001
+BLOOM_VISCOSITY = 0.1
+BLOOM_TIME_SPACE = 0.05
 
 #GLOBAL GRID 
 GRID =[]
@@ -66,6 +72,7 @@ TEST_TOGGLE = False
 ON_TOGGLE = False
 MORPH_TOGGLE = False
 BLACK_OUT = False
+BLOOM_TOGGLE = False
 
 if DEBUG_MODE:
     SNEK_TOGGLE = False
@@ -109,6 +116,21 @@ rand_lt = [0.003, 0.008]
 randspeed = 0.001
 lastDistance = 0
 
+#Timer globals
+snake_interval_min = 2500
+snake_interval_max = 3250
+blackout_interval_min = 250
+blackout_interval_max = 350
+morph_interval_min = 1500
+morph_interval_max = 2250
+bloom_interval_min = 500
+bloom_interval_max = 600
+bloom_counter = 0
+bloom_frequency = 2 # number of full loops before bloom appears
+timer = randint(snake_interval_min, snake_interval_max)
+multiplier = 1.0
+mode_idx = 0
+
 FRAME_BUFFER = None # ** image object, to write pixels from GRID
 
 def settings():
@@ -116,7 +138,7 @@ def settings():
     smooth(2)
 
 def setup():
-    global FLUID, GRID, WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE, sf, w, yvalues, FRAME_BUFFER
+    global GRID, WIDTH, HEIGHT, sf, w, yvalues, FRAME_BUFFER
 
     background(0)
 
@@ -133,20 +155,17 @@ def setup():
 
     initialize_port()
 
-snake_interval_min = 2500
-snake_interval_max = 3250
-blackout_interval_min = 250
-blackout_interval_max = 375
-morph_interval_min = 1500
-morph_interval_max = 2250
-timer = randint(snake_interval_min, snake_interval_max)
-multiplier = 1.0
-mode_idx = 0
 
 def draw():
-    global lastDistance, multiplier, mode_idx, BLACK_OUT, timer, MORPH_TOGGLE, rand_lt, randspeed, img_idx, morph_refresh, src, render, shape0, shape1, pset_0, cset_0, pset_1, pset_1, src_cv, det_cv,\
-        TEST_TOGGLE, s_tracker, INITIALIZED, randposX, randposY, GRID, WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE, VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, \
-        DENS, DENS_PREV, SNEK_TOGGLE, sf, FRAME_BUFFER, testStep
+    global lastDistance, multiplier, mode_idx, BLACK_OUT, timer, \
+        MORPH_TOGGLE, rand_lt, randspeed, img_idx, morph_refresh, src, render, shape0, shape1, pset_0, cset_0, pset_1, pset_1, src_cv, det_cv,\
+        TEST_TOGGLE, s_tracker, INITIALIZED, randposX, randposY, \
+        GRID, WIDTH, HEIGHT, D_RATE, VISCOSITY, TIME_SPACE, \
+        BLOOM_D_RATE, BLOOM_VISCOSITY, BLOOM_TIME_SPACE, \
+        VEL_H, VEL_HPREV, VEL_V, VEL_VPREV, \
+        DENS, DENS_PREV, SNEK_TOGGLE, sf, FRAME_BUFFER, testStep, \
+        snake_interval_min, snake_interval_max, blackout_interval_min, blackout_interval_max, morph_interval_min, morph_interval_max, \
+        bloom_interval_min, bloom_interval_max, bloom_counter, bloom_frequency, BLOOM_TOGGLE
     
     background(0)
     
@@ -157,7 +176,7 @@ def draw():
     # ** progresses through modes 0,1,2 in order spending random amount of time on each
     if timer <= 0 and not TEST_TOGGLE:
         if timer <= 0:
-            mode_idx = (mode_idx + 1) % 4
+            mode_idx = (mode_idx + 1) % 6
             
         if mode_idx == 0:
             SNEK_TOGGLE = True
@@ -173,21 +192,43 @@ def draw():
             morph_refresh = True
             MORPH_TOGGLE = True
             BLACK_OUT = False
-            timer += randint(morph_interval_min, morph_interval_max)
-            
-        else:
+            timer += randint(morph_interval_min, morph_interval_max)    
+        
+        elif mode_idx == 3:
             BLACK_OUT = True
             MORPH_TOGGLE = False
             timer += randint(blackout_interval_min, blackout_interval_max)
+            
+        elif mode_idx == 4:
+            if bloom_counter == bloom_frequency - 1:
+                BLACK_OUT = False
+                BLOOM_TOGGLE = True
+                timer += randint(bloom_interval_min, bloom_interval_max)
+            print("BLOOM", bloom_counter)
+            
+        else:
+            BLACK_OUT = True
+            BLOOM_TOGGLE = False
+            
+            if bloom_counter == bloom_frequency - 1:
+                timer += randint(blackout_interval_min, blackout_interval_max)
+            bloom_counter = (bloom_counter + 1) % (bloom_frequency)
+            print("Post increment", bloom_counter)
     
     timer -= 1 
     
     if not TEST_TOGGLE:
-        if timer > 100:
-            multiplier += 0.01
-        elif timer <= 100:
-            multiplier = 0.01 * timer
-        
+        if not BLOOM_TOGGLE:
+            if timer > 100:
+                multiplier += 0.01
+            elif timer <= 100:
+                multiplier = 0.01 * timer
+        else:
+            if timer > 10:
+                multiplier += 0.01
+            else:
+                multiplier = 0.0
+                    
         if multiplier > 1.0:
             multiplier = 1.0
         elif multiplier < 0.0:
@@ -241,7 +282,7 @@ def draw():
             DENS[i] = (FRAME_BUFFER.pixels[i] & 255) / float(255)
         
     #Snake movement Generation: when the toggle is on, the position coordinates for the snake are generated based on bezier curves stitching. 
-    if SNEK_TOGGLE:
+    if SNEK_TOGGLE or BLOOM_TOGGLE:
         translate(1, 1)
         snake_length = 3
         st = frameCount % (len(s_tracker) - snake_length)
@@ -256,6 +297,7 @@ def draw():
                 y = int(s_tracker[st + i][1])
 
                 bright = floor(1 * multiplier)
+                
                 DENS[FLUID.xy_coordinate(WIDTH, x + 1, y + 1)] += bright
 
     if TEST_TOGGLE:
@@ -267,6 +309,9 @@ def draw():
     if SNEK_TOGGLE: # ** navier-stokes is only used in SNEK mode
         DENS, DENS_PREV = FLUID.density_step(WIDTH, HEIGHT, DENS, DENS_PREV, VEL_H, VEL_V, D_RATE, TIME_SPACE) 
          
+    if BLOOM_TOGGLE:
+        DENS, DENS_PREV = FLUID.density_step(WIDTH, HEIGHT, DENS, DENS_PREV, VEL_H, VEL_V, BLOOM_D_RATE, BLOOM_TIME_SPACE) 
+
     # ** update cells in grid using multiplier based on timer. Without this loop, green never fades to black in SNEK mode
     for i in xrange(HEIGHT):
         for j in xrange(WIDTH):
@@ -287,7 +332,9 @@ def draw():
 
         
 def keyPressed():
-    global testIndex, testStep, MORPH_TOGGLE, ON_TOGGLE, TEST_TOGGLE, DENS, DENS_PREV, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, SNEK_TOGGLE, D_RATE
+    global testIndex, testStep, MORPH_TOGGLE, ON_TOGGLE, TEST_TOGGLE, \
+        DENS, DENS_PREV, VEL_H, VEL_V, VEL_HPREV, VEL_VPREV, SNEK_TOGGLE, D_RATE, \
+        BLOOM_TOGGLE, BLOOM_D_RATE
     
     if ((key == 'R') or (key == 'r')): # ** set all to 0
         DENS = [0 for _ in xrange(SIZE)]
@@ -320,7 +367,7 @@ def keyPressed():
         DENS[FLUID.xy_coordinate(WIDTH, center_x + 1, center_y + 2)] += bval
           
     if ((key == 'S') or (key == 's')):
-        D_RATE = 0.05
+        D_RATE = 0.1
         SNEK_TOGGLE = not SNEK_TOGGLE
         
         if SNEK_TOGGLE:
@@ -346,6 +393,15 @@ def keyPressed():
         else:
             DENS = [0 for _ in xrange(SIZE)]
             print("TESTING OFF")
+            
+    if ((key == 'B') or (key == 'b')):
+        D_RATE = BLOOM_D_RATE
+        BLOOM_TOGGLE = not BLOOM_TOGGLE
+        
+        if BLOOM_TOGGLE:
+            print("BLOOM ON")
+        else:
+            print("BLOOM OFF")
             
     if ((key == 'O') or (key == 'o')):
         ON_TOGGLE = not ON_TOGGLE
@@ -374,7 +430,7 @@ def ratio(x): # convert float to int within [0, 127]
         return int(x * 127)
     
 def count(): # ** make list of converted density values to send to arduino
-    global DENS, WIDTH, HEIGHT, FLUID
+    global DENS, WIDTH, HEIGHT, FLUID, BLOOM_FLUID
     counter = []
     
     # current counter - goes left to right, then top to bottom
@@ -468,9 +524,10 @@ def initialize_port():
 
     try:
         print("INITIALIZING")
-        for each in serialPortAddresses:
-            serialPort = Serial(this, each, 1000000)
-            serialPorts.append(serialPort)
+        if not NO_SERIAL_MODE:
+            for each in serialPortAddresses:
+                serialPort = Serial(this, each, 1000000)
+                serialPorts.append(serialPort)
         
         INITIALIZED = True
         print("ARDUINO SERIAL INITIALIZED")
