@@ -24,7 +24,7 @@ KEYBOARD CONTROLS:
 '''
 
 DEBUG_MODE = False # when true, program only runs magnet test sequence. Same test as 't' key
-NO_SERIAL_MODE = True
+NO_SERIAL_MODE = False
 
 WINDOW_WIDTH = 720 # ** width and height
 WINDOW_HEIGHT = int(720 * 46/40)
@@ -126,7 +126,7 @@ morph_interval_max = 2250
 bloom_interval_min = 500
 bloom_interval_max = 600
 bloom_counter = 0
-bloom_frequency = 3 # number of full loops before bloom appears
+bloom_frequency = 2 # number of full loops before bloom appears
 timer = randint(snake_interval_min, snake_interval_max)
 multiplier = 1.0
 mode_idx = 0
@@ -204,6 +204,7 @@ def draw():
                 BLACK_OUT = False
                 BLOOM_TOGGLE = True
                 timer += randint(bloom_interval_min, bloom_interval_max)
+            print("BLOOM", bloom_counter)
             
         else:
             BLACK_OUT = True
@@ -212,15 +213,22 @@ def draw():
             if bloom_counter == bloom_frequency - 1:
                 timer += randint(blackout_interval_min, blackout_interval_max)
             bloom_counter = (bloom_counter + 1) % (bloom_frequency)
+            print("Post increment", bloom_counter)
     
     timer -= 1 
     
     if not TEST_TOGGLE:
-        if timer > 100:
-            multiplier += 0.01
-        elif timer <= 100:
-            multiplier = 0.01 * timer
-        
+        if not BLOOM_TOGGLE:
+            if timer > 100:
+                multiplier += 0.01
+            elif timer <= 100:
+                multiplier = 0.01 * timer
+        else:
+            if timer > 10:
+                multiplier += 0.01
+            else:
+                multiplier = 0.0
+                    
         if multiplier > 1.0:
             multiplier = 1.0
         elif multiplier < 0.0:
