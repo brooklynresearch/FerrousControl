@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "ElectromagnetController_V3-rescue")(type "KiCad")(uri "${KIPRJMOD}/ElectromagnetController_V3-rescue.kicad_sym")(options "")(descr ""))
+  (lib (name "ElectromagnetController_V5-rescue")(type "KiCad")(uri "${KIPRJMOD}/ElectromagnetController_V5-rescue.kicad_sym")(options "")(descr ""))
+)

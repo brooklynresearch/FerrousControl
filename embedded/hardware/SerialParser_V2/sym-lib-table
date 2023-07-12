@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "SerialParser-rescue")(type "KiCad")(uri "${KIPRJMOD}/SerialParser-rescue.kicad_sym")(options "")(descr ""))
+)
