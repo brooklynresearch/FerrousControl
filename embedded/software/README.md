@@ -13,7 +13,8 @@ Liquid Cyrstal display is not needed, an only used for testing and feedback purp
 ## Platform
 - Tested on Arduino 2.11
 
-## Dependencies
-- TLC59711 Library 
-- LiquidCrystal_I2C library
-- Wire Library 
+## Dependecies:
+- [Teensyduino](https://www.pjrc.com/teensy/teensyduino.html)
+- [MiniCore] (https://github.com/MCUdude/MiniCore)
+- [LiquidCrystal_I2C] (https://github.com/johnrickman/LiquidCrystal_I2C)
+- [TLC59711] (https://github.com/s-light/ulrichstern_Tlc59711/tree/master/examples)

@@ -1,11 +1,11 @@
 # FerrousControl
 Ferrofluid controlled through an electromagnetic array
 
-## PCB DESIGN
-Using Eagle for CAD work.  Go to folder for more information
+## python
+This folder contains all the algorithms and code to send to the electromagnetic array.
 
-## RASPBERRY PI CODE
-To be uploaded, with any steps for set up and functionality.
+## embedded
+This folder contains all the design files and embedded code for the electromagentic controller boards.
+These basically received USB Serial messages from the main computer, parse that information to the proper board, and translate those messages to the electromagnets.
 
-## EMBEDDED CODE
-TO DO
+

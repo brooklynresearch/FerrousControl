@@ -7,18 +7,15 @@ Requirements:
 - PySerial
 - [Robust Serial Library](https://github.com/araffin/arduino-robust-serial)
 
-## ARDUINO
-Requirements:
-- [Teensyduino](https://www.pjrc.com/teensy/teensyduino.html)
-- [MiniCore] (https://github.com/MCUdude/MiniCore)
-- [LiquidCrystal_I2C] (https://github.com/johnrickman/LiquidCrystal_I2C)
-- [TLC59711] (https://github.com/s-light/ulrichstern_Tlc59711/tree/master/examples)
+## PYTHON
+- steps variable in snake effectively changes speed with fewer steps being faster
+- framerate also adjusts speed but for everything at once
+- keyboard toggle for modes needs rewrite
+- original code may have an issue with viscosity in fluid class with viscosity
 
-Both current design codes, just spit out what they received on the serial line to the LCD.  LCD output may need to change to some status message, or timing measure, or some other feedback that might be more useful.
-
-### TO DO
-- Confirm communications between Serial Parser and Electromagnetic Control
-- Confirm proper values being received at the view buffer size of 600 Bytes per Teensy, 120 Bytes per Serial Line, and 24 Bytes per Arduino
+## Startup
+- java -jar /Users/newhumans/Documents/GitHub/FerrousControl/COMMS/PYTHON/nstokes_2_40x46/processing-py.jar /Users/newhumans/Documents/GitHub/FerrousControl/COMMS/PYTHON/nstokes_2_40x46/nstokes_2_40x46.pyde
+- above was done as part of a Utilities Automator script that starts on login
 
 ### Resources
 - [USB Serial Communication](https://www.pjrc.com/teensy/td_serial.html)
